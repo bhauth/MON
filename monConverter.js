@@ -56,7 +56,11 @@ class MONParser extends CstParser {
         }},
         { ALT: () => {
           $.CONSUME3(Dash);
-          $.SUBRULE($.bracketArray); // Dash followed by bracket array
+          $.SUBRULE($.bracketArray);
+        }},
+        { ALT: () => {
+          $.CONSUME4(Dash);
+          $.SUBRULE($.keyValueSet);
         }},
         { ALT: () => {
           $.CONSUME(Comma);
@@ -68,7 +72,11 @@ class MONParser extends CstParser {
         }},
         { ALT: () => {
           $.CONSUME3(Comma);
-          $.SUBRULE2($.bracketArray); // Comma followed by bracket array
+          $.SUBRULE2($.bracketArray);
+        }},
+        { ALT: () => {
+          $.CONSUME4(Comma);
+          $.SUBRULE2($.keyValueSet);
         }}
       ]);
     });
@@ -91,6 +99,12 @@ class MONParser extends CstParser {
         { ALT: () => $.CONSUME(NumberLiteral) },
         { ALT: () => $.SUBRULE($.bracketArray) }
       ]);
+    });
+
+    $.RULE('keyValueSet', () => {
+      $.AT_LEAST_ONE(() => {
+        $.SUBRULE($.keyValue);
+      });
     });
 
     this.performSelfAnalysis();
@@ -122,7 +136,7 @@ function countLeadingHashes(line) {
 
 function parseSection(node) {
   if (node.isComment) return null;
-  const obj = {};
+  let obj = {};
 
   if (node.content.length) {
     const sectionText = node.content.join('\n');
@@ -132,11 +146,7 @@ function parseSection(node) {
     const cst = parser.section();
     if (parser.errors.length) throw new Error(parser.errors[0].message);
 
-    const hasKeyValue = cst.children.keyValue && cst.children.keyValue.length > 0;
-    const hasArray = cst.children.arrayItem && cst.children.arrayItem.length > 0;
-    if (hasKeyValue && hasArray) throw new Error(`Section cannot mix key-values and arrays: ${node.name}`);
-
-    if (hasKeyValue) {
+    if (cst.children.keyValue) {
       cst.children.keyValue.forEach(kv => {
         const key = kv.children.Identifier[0].image;
         let value;
@@ -149,7 +159,9 @@ function parseSection(node) {
         }
         obj[key] = value;
       });
-    } else if (hasArray) {
+    }
+
+    if (cst.children.arrayItem) {
       const items = [];
       let currentSubArray = null;
       for (const item of cst.children.arrayItem) {
@@ -159,7 +171,19 @@ function parseSection(node) {
         } else if (item.children.NumberLiteral) {
           value = parseFloat(item.children.NumberLiteral[0].image);
         } else if (item.children.bracketArray) {
-          value = extractBracketArray(item.children.bracketArray[0]); // Handle nested bracket arrays
+          value = extractBracketArray(item.children.bracketArray[0]);
+        } else if (item.children.keyValueSet) {
+          value = {};
+          item.children.keyValueSet[0].children.keyValue.forEach(kv => {
+            const key = kv.children.Identifier[0].image;
+            if (kv.children.StringLiteral) {
+              value[key] = kv.children.StringLiteral[0].image.slice(1, -1);
+            } else if (kv.children.NumberLiteral) {
+              value[key] = parseFloat(kv.children.NumberLiteral[0].image);
+            } else if (kv.children.bracketArray) {
+              value[key] = extractBracketArray(kv.children.bracketArray[0]);
+            }
+          });
         }
         if (item.children.Dash) {
           if (currentSubArray) {
@@ -179,7 +203,7 @@ function parseSection(node) {
         if (currentSubArray.length === 1) { items.push(currentSubArray[0]); }
         else { items.push(currentSubArray); }
       }
-      return items;
+      obj = items;
     }
   }
 

@@ -1,4 +1,13 @@
+
 a = ["b", ["c"]]
+
+# Section1
+- 
+  key1 = "value1"
+  key2 = [1, 2]
+, 
+  key3 = "nested"
+- "simple"
 
 #servers
 ##alpha
