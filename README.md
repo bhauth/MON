@@ -19,7 +19,7 @@ MON is also meant to handle schemas for data in it. There are already several pe
 
 ## current implementation
 
-An initial implementation is available [here]. Usage:
+An initial implementation is available [here](https://github.com/bhauth/MON). Usage:
 
 - install Node if you haven't
 - cd \[directory\]
