@@ -1,0 +1,24 @@
+a = ["b", ["c"]]
+
+#servers
+##alpha
+ip = "This is a
+multi-line
+string"
+role = ["frontend", "backend"]
+### beta
+name = "beta1"
+##dash
+- "dash1
+line2"
+- ["dash2", "dash3"]
+// single-line comment
+
+##comma
+, "comma1
+line2"
+, 456
+##/comment
+This is ignored.
+### comment continues
+Also ignored.

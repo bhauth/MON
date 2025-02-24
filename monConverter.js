@@ -1,0 +1,283 @@
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { createToken, Lexer, CstParser } from 'chevrotain';
+
+const Hash = createToken({ name: 'Hash', pattern: /#+/ });
+const Slash = createToken({ name: 'Slash', pattern: /\// });
+const CommentLine = createToken({ name: 'CommentLine', pattern: /\/\/.*/ });
+const Dash = createToken({ name: 'Dash', pattern: /-/ });
+const Comma = createToken({ name: 'Comma', pattern: /,/ });
+const LBracket = createToken({ name: 'LBracket', pattern: /\[/ });
+const RBracket = createToken({ name: 'RBracket', pattern: /]/ });
+const Equals = createToken({ name: 'Equals', pattern: /=/ });
+const StringLiteral = createToken({ name: 'StringLiteral', pattern: /"[^"]*"/, line_breaks: true });
+const Identifier = createToken({ name: 'Identifier', pattern: /[a-zA-Z_]\w*/ });
+const NumberLiteral = createToken({ name: 'NumberLiteral', pattern: /(\d*\.\d+|\d+\.?\d*)/ });
+const WhiteSpace = createToken({ name: 'WhiteSpace', pattern: /\s+/, group: Lexer.SKIPPED });
+
+const allTokens = [
+  WhiteSpace, CommentLine, Hash, Slash, Dash, Comma, LBracket, RBracket, Equals, StringLiteral, Identifier, NumberLiteral
+];
+const lexer = new Lexer(allTokens);
+
+class MONParser extends CstParser {
+  constructor() {
+    super(allTokens);
+    const $ = this;
+
+    $.RULE('section', () => {
+      $.MANY(() => {
+        $.OR([
+          { ALT: () => $.SUBRULE($.keyValue) },
+          { ALT: () => $.SUBRULE($.arrayItem) }
+        ]);
+      });
+    });
+
+    $.RULE('keyValue', () => {
+      $.CONSUME(Identifier);
+      $.CONSUME(Equals);
+      $.OR([
+        { ALT: () => $.CONSUME(StringLiteral) },
+        { ALT: () => $.CONSUME(NumberLiteral) },
+        { ALT: () => $.SUBRULE($.bracketArray) }
+      ]);
+    });
+
+    $.RULE('arrayItem', () => {
+      $.OR([
+        { ALT: () => {
+          $.CONSUME(Dash);
+          $.CONSUME(StringLiteral);
+        }},
+        { ALT: () => {
+          $.CONSUME2(Dash);
+          $.CONSUME(NumberLiteral);
+        }},
+        { ALT: () => {
+          $.CONSUME3(Dash);
+          $.SUBRULE($.bracketArray); // Dash followed by bracket array
+        }},
+        { ALT: () => {
+          $.CONSUME(Comma);
+          $.CONSUME2(StringLiteral);
+        }},
+        { ALT: () => {
+          $.CONSUME2(Comma);
+          $.CONSUME2(NumberLiteral);
+        }},
+        { ALT: () => {
+          $.CONSUME3(Comma);
+          $.SUBRULE2($.bracketArray); // Comma followed by bracket array
+        }}
+      ]);
+    });
+
+    $.RULE('bracketArray', () => {
+      $.CONSUME(LBracket);
+      $.OPTION(() => {
+        $.SUBRULE($.value);
+        $.MANY(() => {
+          $.CONSUME(Comma);
+          $.SUBRULE2($.value);
+        });
+      });
+      $.CONSUME(RBracket);
+    });
+
+    $.RULE('value', () => {
+      $.OR([
+        { ALT: () => $.CONSUME(StringLiteral) },
+        { ALT: () => $.CONSUME(NumberLiteral) },
+        { ALT: () => $.SUBRULE($.bracketArray) }
+      ]);
+    });
+
+    this.performSelfAnalysis();
+  }
+}
+
+const parser = new MONParser();
+
+
+function extractBracketArray(arrayNode) {
+  const items = [];
+  arrayNode.children.value?.forEach(v => {
+    if (v.children.StringLiteral) {
+      items.push(v.children.StringLiteral[0].image.slice(1, -1));
+    } else if (v.children.NumberLiteral) {
+      items.push(parseFloat(v.children.NumberLiteral[0].image));
+    } else if (v.children.bracketArray) {
+      items.push(extractBracketArray(v.children.bracketArray[0]));
+    }
+  });
+  return items;
+}
+
+function countLeadingHashes(line) {
+  let count = 0;
+  while (line[count] === '#') count++;
+  return count;
+}
+
+function parseSection(node) {
+  if (node.isComment) return null;
+  const obj = {};
+
+  if (node.content.length) {
+    const sectionText = node.content.join('\n');
+    const lexResult = lexer.tokenize(sectionText);
+    if (lexResult.errors.length) throw new Error(lexResult.errors[0].message);
+    parser.input = lexResult.tokens;
+    const cst = parser.section();
+    if (parser.errors.length) throw new Error(parser.errors[0].message);
+
+    const hasKeyValue = cst.children.keyValue && cst.children.keyValue.length > 0;
+    const hasArray = cst.children.arrayItem && cst.children.arrayItem.length > 0;
+    if (hasKeyValue && hasArray) throw new Error(`Section cannot mix key-values and arrays: ${node.name}`);
+
+    if (hasKeyValue) {
+      cst.children.keyValue.forEach(kv => {
+        const key = kv.children.Identifier[0].image;
+        let value;
+        if (kv.children.StringLiteral) {
+          value = kv.children.StringLiteral[0].image.slice(1, -1);
+        } else if (kv.children.NumberLiteral) {
+          value = parseFloat(kv.children.NumberLiteral[0].image);
+        } else if (kv.children.bracketArray) {
+          value = extractBracketArray(kv.children.bracketArray[0]);
+        }
+        obj[key] = value;
+      });
+    } else if (hasArray) {
+      const items = [];
+      let currentSubArray = null;
+      for (const item of cst.children.arrayItem) {
+        let value;
+        if (item.children.StringLiteral) {
+          value = item.children.StringLiteral[0].image.slice(1, -1);
+        } else if (item.children.NumberLiteral) {
+          value = parseFloat(item.children.NumberLiteral[0].image);
+        } else if (item.children.bracketArray) {
+          value = extractBracketArray(item.children.bracketArray[0]); // Handle nested bracket arrays
+        }
+        if (item.children.Dash) {
+          if (currentSubArray) {
+            if (currentSubArray.length === 1) { items.push(currentSubArray[0]); }
+            else { items.push(currentSubArray); }
+          }
+          currentSubArray = [value];
+        } else if (item.children.Comma) {
+          if (currentSubArray) {
+            currentSubArray.push(value);
+          } else {
+            items.push(value);
+          }
+        }
+      }
+      if (currentSubArray) {
+        if (currentSubArray.length === 1) { items.push(currentSubArray[0]); }
+        else { items.push(currentSubArray); }
+      }
+      return items;
+    }
+  }
+
+  for (const child of node.children) {
+    const childData = parseSection(child);
+    if (childData) obj[child.name] = childData;
+  }
+  return obj;
+}
+
+// main function
+function parseMON(text) {
+  const lines = text.split('\n');
+  let stack = [{ level: 0, name: '', content: [], children: [] }];
+  let current = stack[0];
+  let inCommentBlock = false;
+  let commentLevel = 0;
+
+  // build hierarchy
+  for (let line of lines) {
+    line = line.trimStart();
+    if (!line) continue;
+
+    if (inCommentBlock) {
+      if (line.startsWith('#')) {
+        const level = countLeadingHashes(line);
+        if (level <= commentLevel) inCommentBlock = false;
+        else continue;
+      } else {
+        continue;
+      }
+    }
+
+    switch (line[0]) {
+      case '#':
+        const level = countLeadingHashes(line);
+        const isComment = line[level] === '/';
+        const name = line.slice(isComment ? level + 1 : level).trim();
+        while (stack.length && stack[stack.length - 1].level >= level) {
+          stack.pop();
+        }
+        current = stack[stack.length - 1];
+        const node = { level, name, content: [], children: [], isComment };
+        current.children.push(node);
+        if (!isComment) stack.push(node);
+        current = node;
+        if (isComment) {
+          inCommentBlock = true;
+          commentLevel = level;
+        }
+        break;
+
+      case '/':
+        if (line.startsWith('//')) continue;
+        if (!inCommentBlock) current.content.push(line);
+        break;
+
+      case '-':
+      case ',':
+      default:
+        if (!inCommentBlock) current.content.push(line);
+        break;
+    }
+  }
+
+  return parseSection(stack[0]);
+}
+
+
+async function main() {
+  const args = process.argv.slice(2);
+
+  if (args.length === 0) {
+    console.log('Usage: node monConverter.js <input_filename1> <input_filename2> ...');
+    process.exit(1);
+  }
+
+  for (const inputFilename of args) {
+    try {
+      const inputText = await fs.readFile(inputFilename, 'utf8');
+      const dataObject = parseMON(inputText);
+      
+      const inputDir = path.dirname(inputFilename);
+      const inputBaseName = path.basename(inputFilename, path.extname(inputFilename));
+      const outputFilename = path.join(inputDir, `${inputBaseName}.json`);
+      await fs.writeFile(outputFilename, JSON.stringify(dataObject, null, 2), 'utf8');
+      console.log(`JSON written to '${outputFilename}'`);
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        console.error(`Error: File '${inputFilename}' not found.`);
+      } else {
+        console.error(`An error occurred processing '${inputFilename}': ${err.message}`);
+      }
+    }
+  }
+}
+
+main().catch(err => {
+  console.error('Unexpected error:', err.message);
+  process.exit(1);
+});

@@ -1,0 +1,15 @@
+{
+  "name": "mon",
+  "version": "1.0.0",
+  "description": "MON",
+  "type": "module",
+  "main": "monConverter.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "bhauth",
+  "license": "CC-BY-SA",
+  "dependencies": {
+    "chevrotain": "^11.0.3"
+  }
+}
