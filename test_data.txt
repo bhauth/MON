@@ -31,3 +31,6 @@ line2"
 This is ignored.
 ### comment continues
 Also ignored.
+
+#servers.deep.nested
+item = 11

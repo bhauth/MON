@@ -209,8 +209,26 @@ function parseSection(node) {
 
   for (const child of node.children) {
     const childData = parseSection(child);
-    if (childData) obj[child.name] = childData;
+    const prefixes = child.name.split('.');
+    let destination = obj;
+
+    for (let i = 0; i < prefixes.length - 1; i++) {
+      const prefix = prefixes[i];
+      if (!destination[prefix]) {
+        destination[prefix] = {};
+      }
+      destination = destination[prefix];
+    }
+
+    if (childData) {
+      if (prefixes.length > 0) {
+        destination[prefixes[prefixes.length - 1]] = childData;
+      } else {
+          obj = childData;
+      }
+    }
   }
+  
   return obj;
 }
 
