@@ -28,8 +28,9 @@ An initial implementation is available [here](https://github.com/bhauth/MON). Us
 
 That generates .json files from the input files. Note that:
 - that code is probably terrible
-- it doesn't currently handle schemas
-    - or placing data nested in previous structures
+- it doesn't currently handle:
+    - schemas
+    - naming array elements to place data in them
 - Node takes hundreds of milliseconds to start up
 
 
