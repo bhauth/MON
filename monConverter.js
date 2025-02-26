@@ -114,13 +114,21 @@ class MONParser extends CstParser {
 const parser = new MONParser();
 
 
+function extractStringLiteral(node) {
+  return node.children.StringLiteral[0].image.slice(1, -1);
+}
+
+function extractFloat(node) {
+  return parseFloat(node.children.NumberLiteral[0].image);
+}
+
 function extractBracketArray(arrayNode) {
   const items = [];
   arrayNode.children.value?.forEach(v => {
     if (v.children.StringLiteral) {
-      items.push(v.children.StringLiteral[0].image.slice(1, -1));
+      items.push(extractStringLiteral(v));
     } else if (v.children.NumberLiteral) {
-      items.push(parseFloat(v.children.NumberLiteral[0].image));
+      items.push(extractFloat(v));
     } else if (v.children.bracketArray) {
       items.push(extractBracketArray(v.children.bracketArray[0]));
     }
@@ -151,9 +159,9 @@ function parseSection(node) {
         const key = kv.children.Identifier[0].image;
         let value;
         if (kv.children.StringLiteral) {
-          value = kv.children.StringLiteral[0].image.slice(1, -1);
+          value = extractStringLiteral(kv);
         } else if (kv.children.NumberLiteral) {
-          value = parseFloat(kv.children.NumberLiteral[0].image);
+          value = extractFloat(kv);
         } else if (kv.children.bracketArray) {
           value = extractBracketArray(kv.children.bracketArray[0]);
         }
@@ -167,9 +175,9 @@ function parseSection(node) {
       for (const item of cst.children.arrayItem) {
         let value;
         if (item.children.StringLiteral) {
-          value = item.children.StringLiteral[0].image.slice(1, -1);
+          value = extractStringLiteral(item);
         } else if (item.children.NumberLiteral) {
-          value = parseFloat(item.children.NumberLiteral[0].image);
+          value = extractFloat(item);
         } else if (item.children.bracketArray) {
           value = extractBracketArray(item.children.bracketArray[0]);
         } else if (item.children.keyValueSet) {
@@ -177,9 +185,9 @@ function parseSection(node) {
           item.children.keyValueSet[0].children.keyValue.forEach(kv => {
             const key = kv.children.Identifier[0].image;
             if (kv.children.StringLiteral) {
-              value[key] = kv.children.StringLiteral[0].image.slice(1, -1);
+              value[key] = extractStringLiteral(kv);
             } else if (kv.children.NumberLiteral) {
-              value[key] = parseFloat(kv.children.NumberLiteral[0].image);
+              value[key] = extractFloat(kv);
             } else if (kv.children.bracketArray) {
               value[key] = extractBracketArray(kv.children.bracketArray[0]);
             }
