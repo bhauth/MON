@@ -1,36 +1,43 @@
 
-a = ["b", ["c"]]
+root_item = ["nested", ["bracket", ["array"]]]
 
-# Section1
-- 
-  key1 = "value1"
-  key2 = [1, 2]
-, 
-  key3 = "nested"
-- "simple"
+# alpha
+11
 
-#servers
-##alpha
-ip = "This is a
-multi-line
-string"
-role = ["frontend", "backend"]
-### beta
-name = "beta1"
-##dash
-- "dash1
-line2"
-- ["dash2", "dash3"]
-// single-line comment
+# beta
+22
+33
 
-##comma
-, "comma1
-line2"
-, 456
-##/comment
-This is ignored.
-### comment continues
-Also ignored.
+# gamma
+g = "is for gamma"
 
-#servers.deep.nested
-item = 11
+# gamma.deeply.nested.items
+multi_line_string = "this...
+is...
+nested."
+
+# epsilon.[]
+a = "building"
+b = "an"
+
+# epsilon.[]
+c = "array"
+d = "up"
+
+#/ comment block
+
+## Text here is ignored.
+Until hitting a lower-level header.
+
+# zeta
+// This is a comment.
+// Commas produce nested values.
+- 0
+- 1
+- 2
+  , 22
+- 3
+  , 33
+
+# zeta.0
+"replaced zero in zeta"
