@@ -29,7 +29,8 @@ class MONParser extends CstParser {
       $.MANY(() => {
         $.OR([
           { ALT: () => $.SUBRULE($.keyValue) },
-          { ALT: () => $.SUBRULE($.arrayItem) }
+          { ALT: () => $.SUBRULE($.arrayItem) },
+          { ALT: () => $.SUBRULE($.plainValue) }
         ]);
       });
     });
@@ -107,6 +108,13 @@ class MONParser extends CstParser {
       });
     });
 
+    $.RULE('plainValue', () => {
+      $.OR([
+        { ALT: () => $.CONSUME(StringLiteral) },
+        { ALT: () => $.CONSUME(NumberLiteral) }
+      ]);
+    });
+
     this.performSelfAnalysis();
   }
 }
@@ -145,6 +153,7 @@ function countLeadingHashes(line) {
 function parseSection(node) {
   if (node.isComment) return null;
   let obj = {};
+  let plainValues = [];
 
   if (node.content.length) {
     const sectionText = node.content.join('\n');
@@ -212,6 +221,19 @@ function parseSection(node) {
         else { items.push(currentSubArray); }
       }
       obj = items;
+    }
+
+    if (cst.children.plainValue) {
+      cst.children.plainValue.forEach(pv => {
+        let value;
+        if (pv.children.StringLiteral) {
+          value = extractStringLiteral(pv);
+        } else if (pv.children.NumberLiteral) {
+          value = extractFloat(pv);
+        }
+        plainValues.push(value);
+      });
+      obj = plainValues.length === 1 ? plainValues[0] : plainValues;
     }
   }
 
