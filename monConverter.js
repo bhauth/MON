@@ -213,18 +213,23 @@ function parseSection(node) {
     let destination = obj;
 
     for (let i = 0; i < prefixes.length - 1; i++) {
-      const prefix = prefixes[i];
+      const prefix = (prefixes[i] === "[]") ?
+        destination.length : prefixes[i];
       if (!destination[prefix]) {
-        destination[prefix] = {};
+        destination[prefix] =
+          (prefixes[i+1] === "[]") ? [] : {};
       }
       destination = destination[prefix];
     }
 
     if (childData) {
+      const last_i = prefixes.length - 1;
       if (prefixes.length > 0) {
-        destination[prefixes[prefixes.length - 1]] = childData;
+        let prefix = prefixes[prefixes.length - 1];
+        prefix = (prefix === "[]") ? destination.length : prefix;
+        destination[prefix] = childData;
       } else {
-          obj = childData;
+        obj = childData;
       }
     }
   }
