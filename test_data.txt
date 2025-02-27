@@ -53,4 +53,8 @@ status = "active"
 ##' joe
 // ditto
 
+##: code
+console.log("Send a message in a bottle.");
+return `Bob's role is ${this.bob.role}.`;
+
 #' people_copy

@@ -150,101 +150,147 @@ function countLeadingHashes(line) {
   return count;
 }
 
-function parseSection(node) {
-  if (node.isComment) return null;
+const NodeType = {
+  TEMPLATE: 'TEMPLATE',
+  CODE: 'CODE',
+  COMMENT: 'COMMENT',
+  NORMAL: 'NORMAL',
+};
+
+function parseItem(sectionText) {
+  const lexResult = lexer.tokenize(sectionText);
+  if (lexResult.errors.length) throw new Error(lexResult.errors[0].message);
+  parser.input = lexResult.tokens;
+  const cst = parser.section();
+  if (parser.errors.length) throw new Error(parser.errors[0].message);
+
   let obj = {};
-  let plainValues = [];
 
-  if (node.content.length) {
-    const sectionText = node.content.join('\n');
-    const lexResult = lexer.tokenize(sectionText);
-    if (lexResult.errors.length) throw new Error(lexResult.errors[0].message);
-    parser.input = lexResult.tokens;
-    const cst = parser.section();
-    if (parser.errors.length) throw new Error(parser.errors[0].message);
-
-    if (cst.children.keyValue) {
-      cst.children.keyValue.forEach(kv => {
-        const key = kv.children.Identifier[0].image;
-        let value;
-        if (kv.children.StringLiteral) {
-          value = extractStringLiteral(kv);
-        } else if (kv.children.NumberLiteral) {
-          value = extractFloat(kv);
-        } else if (kv.children.bracketArray) {
-          value = extractBracketArray(kv.children.bracketArray[0]);
-        }
-        obj[key] = value;
-      });
-    }
-
-    if (cst.children.arrayItem) {
-      const items = [];
-      let currentSubArray = null;
-      for (const item of cst.children.arrayItem) {
-        let value;
-        if (item.children.StringLiteral) {
-          value = extractStringLiteral(item);
-        } else if (item.children.NumberLiteral) {
-          value = extractFloat(item);
-        } else if (item.children.bracketArray) {
-          value = extractBracketArray(item.children.bracketArray[0]);
-        } else if (item.children.keyValueSet) {
-          value = {};
-          item.children.keyValueSet[0].children.keyValue.forEach(kv => {
-            const key = kv.children.Identifier[0].image;
-            if (kv.children.StringLiteral) {
-              value[key] = extractStringLiteral(kv);
-            } else if (kv.children.NumberLiteral) {
-              value[key] = extractFloat(kv);
-            } else if (kv.children.bracketArray) {
-              value[key] = extractBracketArray(kv.children.bracketArray[0]);
-            }
-          });
-        }
-        if (item.children.Dash) {
-          if (currentSubArray) {
-            if (currentSubArray.length === 1) { items.push(currentSubArray[0]); }
-            else { items.push(currentSubArray); }
-          }
-          currentSubArray = [value];
-        } else if (item.children.Comma) {
-          if (currentSubArray) {
-            currentSubArray.push(value);
-          } else {
-            items.push(value);
-          }
-        }
+  if (cst.children.keyValue) {
+    cst.children.keyValue.forEach(kv => {
+      const key = kv.children.Identifier[0].image;
+      let value;
+      if (kv.children.StringLiteral) {
+        value = extractStringLiteral(kv);
+      } else if (kv.children.NumberLiteral) {
+        value = extractFloat(kv);
+      } else if (kv.children.bracketArray) {
+        value = extractBracketArray(kv.children.bracketArray[0]);
       }
-      if (currentSubArray) {
-        if (currentSubArray.length === 1) { items.push(currentSubArray[0]); }
-        else { items.push(currentSubArray); }
-      }
-      obj = items;
-    }
-
-    if (cst.children.plainValue) {
-      cst.children.plainValue.forEach(pv => {
-        let value;
-        if (pv.children.StringLiteral) {
-          value = extractStringLiteral(pv);
-        } else if (pv.children.NumberLiteral) {
-          value = extractFloat(pv);
-        }
-        plainValues.push(value);
-      });
-      obj = plainValues.length === 1 ? plainValues[0] : plainValues;
-    }
+      obj[key] = value;
+    });
   }
 
-  for (const child of node.children) {
-    if (child.skipOutput) {
-      continue;
+  if (cst.children.arrayItem) {
+    const items = [];
+    let currentSubArray = null;
+    for (const item of cst.children.arrayItem) {
+      let value;
+      if (item.children.StringLiteral) {
+        value = extractStringLiteral(item);
+      } else if (item.children.NumberLiteral) {
+        value = extractFloat(item);
+      } else if (item.children.bracketArray) {
+        value = extractBracketArray(item.children.bracketArray[0]);
+      } else if (item.children.keyValueSet) {
+        value = {};
+        item.children.keyValueSet[0].children.keyValue.forEach(kv => {
+          const key = kv.children.Identifier[0].image;
+          if (kv.children.StringLiteral) {
+            value[key] = extractStringLiteral(kv);
+          } else if (kv.children.NumberLiteral) {
+            value[key] = extractFloat(kv);
+          } else if (kv.children.bracketArray) {
+            value[key] = extractBracketArray(kv.children.bracketArray[0]);
+          }
+        });
+      }
+      if (item.children.Dash) {
+        if (currentSubArray) {
+          if (currentSubArray.length === 1) {
+            items.push(currentSubArray[0]);
+          } else {
+            items.push(currentSubArray);
+          }
+        }
+        currentSubArray = [value];
+      } else if (item.children.Comma) {
+        if (currentSubArray) {
+          currentSubArray.push(value);
+        } else {
+          items.push(value);
+        }
+      }
     }
-    const childData = parseSection(child);
-    const prefixes = child.name.split('.');
-    let destination = obj;
+    if (currentSubArray) {
+      if (currentSubArray.length === 1) {
+        items.push(currentSubArray[0]);
+      } else {
+        items.push(currentSubArray);
+      }
+    }
+    obj = items;
+  }
 
+  if (cst.children.plainValue) {
+    const plainValues = cst.children.plainValue.map((pv) => {
+      if (pv.children.StringLiteral) {
+        return extractStringLiteral(pv);
+      } else if (pv.children.NumberLiteral) {
+        return extractFloat(pv);
+      }
+    });
+    obj = plainValues.length === 1 ? plainValues[0] : plainValues;
+  }
+
+  return obj;
+}
+
+function parseSection(node, trust) {
+  switch (node.nodeType) {
+    case NodeType.COMMENT:
+    case NodeType.CODE:
+      return null;
+    default: break;
+  }
+  
+  let obj = {};
+  if (node.content.length) {
+    obj = parseItem(node.content.join('\n'));
+  }
+  
+  let childData = {};
+  for (const child of node.children) {
+    switch (child.nodeType) {
+      
+      case NodeType.TEMPLATE:
+        continue;
+      
+      case NodeType.CODE:
+        if (trust >= 2) {
+          const code = child.content.join('\n');
+          try {
+            const fn = new Function(code);
+            const result = fn.call(obj);
+            if (result !== undefined) {
+              childData = result;
+            }
+          } catch (error) {
+            console.error('Error executing code block:', error);
+          }
+        } else {
+          console.log('Code block skipped due to trust level.');
+        }
+        break;
+
+      case NodeType.NORMAL:
+      default:
+      childData = parseSection(child, trust);
+      break;
+    }
+
+    let destination = obj;
+    const prefixes = child.name.split('.');
     for (let i = 0; i < prefixes.length - 1; i++) {
       const prefix = (prefixes[i] === "[]") ? destination.length : prefixes[i];
       if (!destination[prefix]) {
@@ -252,7 +298,7 @@ function parseSection(node) {
       }
       destination = destination[prefix];
     }
-
+    
     if (childData) {
       const last_i = prefixes.length - 1;
       if (prefixes.length > 0) {
@@ -264,6 +310,7 @@ function parseSection(node) {
       }
     }
   }
+
   return obj;
 }
 
@@ -295,10 +342,11 @@ function parseMON(text, trust = 1) {
       case '#':
         const level = countLeadingHashes(line);
         const firstChar = line[level];
+        
         const isComment = firstChar === '/';
         let isDitto = firstChar === "'";
         let isTemplate = false;
-        let name = line.slice(isComment || isDitto ? level + 1 : level).trim();
+        let isCode = firstChar === ":";
 
         while (stack.length && stack[stack.length - 1].level >= level) {
           stack.pop();
@@ -309,8 +357,15 @@ function parseMON(text, trust = 1) {
           isDitto = false;
           isTemplate = true;
         }
+        
+        let nodeType = isComment ? NodeType.COMMENT :
+          isTemplate ? NodeType.TEMPLATE :
+          isCode ? NodeType.CODE :
+          NodeType.NORMAL;
 
-        const node = { level, name, content: [], children: [], isComment, skipOutput: isTemplate };
+        let headerLength = isDitto || (nodeType != NodeType.NORMAL) ? level + 1 : level;
+        let name = line.slice(headerLength).trim();
+        const node = { level, name, content: [], children: [], nodeType };
         if (isDitto && trust > 0 && lastValidNodes[level]) {
           node.content = [...lastValidNodes[level].content];
           node.children = [...lastValidNodes[level].children];
@@ -320,7 +375,7 @@ function parseMON(text, trust = 1) {
         if (!isComment) stack.push(node);
         current = node;
 
-        if (!isDitto && !isComment) {
+        if (nodeType === NodeType.NORMAL || nodeType === NodeType.TEMPLATE) {
           lastValidNodes[level] = node;
         }
 
@@ -343,7 +398,7 @@ function parseMON(text, trust = 1) {
     }
   }
 
-  return parseSection(stack[0]);
+  return parseSection(stack[0], trust);
 }
 
 
@@ -358,7 +413,7 @@ async function main() {
   for (const inputFilename of args) {
     try {
       const inputText = await fs.readFile(inputFilename, 'utf8');
-      const dataObject = parseMON(inputText);
+      const dataObject = parseMON(inputText, 2);
       
       const inputDir = path.dirname(inputFilename);
       const inputBaseName = path.basename(inputFilename, path.extname(inputFilename));
