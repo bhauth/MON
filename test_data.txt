@@ -16,11 +16,13 @@ multi_line_string = "this...
 is...
 nested."
 
-# epsilon.[]
+# epsilon
+
+## array.[]
 a = "building"
 b = "an"
 
-# epsilon.[]
+## array.[]
 c = "array"
 d = "up"
 
@@ -41,3 +43,14 @@ Until hitting a lower-level header.
 
 # zeta.0
 "replaced zero in zeta"
+
+# people
+##' employee_template
+role = "employee"
+status = "active"
+
+##' bob
+##' joe
+// ditto
+
+#' people_copy

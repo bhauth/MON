@@ -238,16 +238,17 @@ function parseSection(node) {
   }
 
   for (const child of node.children) {
+    if (child.skipOutput) {
+      continue;
+    }
     const childData = parseSection(child);
     const prefixes = child.name.split('.');
     let destination = obj;
 
     for (let i = 0; i < prefixes.length - 1; i++) {
-      const prefix = (prefixes[i] === "[]") ?
-        destination.length : prefixes[i];
+      const prefix = (prefixes[i] === "[]") ? destination.length : prefixes[i];
       if (!destination[prefix]) {
-        destination[prefix] =
-          (prefixes[i+1] === "[]") ? [] : {};
+        destination[prefix] = (prefixes[i + 1] === "[]") ? [] : {};
       }
       destination = destination[prefix];
     }
@@ -263,17 +264,17 @@ function parseSection(node) {
       }
     }
   }
-  
   return obj;
 }
 
 // main function
-function parseMON(text) {
+function parseMON(text, trust = 1) {
   const lines = text.split('\n');
   let stack = [{ level: 0, name: '', content: [], children: [] }];
   let current = stack[0];
   let inCommentBlock = false;
   let commentLevel = 0;
+  let lastValidNodes = [];
 
   // build hierarchy
   for (let line of lines) {
@@ -293,16 +294,36 @@ function parseMON(text) {
     switch (line[0]) {
       case '#':
         const level = countLeadingHashes(line);
-        const isComment = line[level] === '/';
-        const name = line.slice(isComment ? level + 1 : level).trim();
+        const firstChar = line[level];
+        const isComment = firstChar === '/';
+        let isDitto = firstChar === "'";
+        let isTemplate = false;
+        let name = line.slice(isComment || isDitto ? level + 1 : level).trim();
+
         while (stack.length && stack[stack.length - 1].level >= level) {
           stack.pop();
         }
         current = stack[stack.length - 1];
-        const node = { level, name, content: [], children: [], isComment };
+        
+        if (isDitto && current.children.length === 0) {
+          isDitto = false;
+          isTemplate = true;
+        }
+
+        const node = { level, name, content: [], children: [], isComment, skipOutput: isTemplate };
+        if (isDitto && trust > 0 && lastValidNodes[level]) {
+          node.content = [...lastValidNodes[level].content];
+          node.children = [...lastValidNodes[level].children];
+        }
+
         current.children.push(node);
         if (!isComment) stack.push(node);
         current = node;
+
+        if (!isDitto && !isComment) {
+          lastValidNodes[level] = node;
+        }
+
         if (isComment) {
           inCommentBlock = true;
           commentLevel = level;
