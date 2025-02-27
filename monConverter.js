@@ -109,41 +109,24 @@ function extractFloat(node) {
   return parseFloat(node.children.NumberLiteral[0].image);
 }
 
-function extractBracketArray(arrayNode) {
-  const items = [];
-  arrayNode.children.value?.forEach(v => {
-    if (v.children.StringLiteral) {
-      items.push(extractStringLiteral(v));
-    } else if (v.children.NumberLiteral) {
-      items.push(extractFloat(v));
-    } else if (v.children.TrueLiteral) {
-      items.push(true);
-    } else if (v.children.FalseLiteral) {
-      items.push(false);
-    } else if (v.children.NullLiteral) {
-      items.push(null);
-    } else if (v.children.bracketArray) {
-      items.push(extractBracketArray(v.children.bracketArray[0]));
-    }
-  });
-  return items;
-}
-
 function extractValue(node) {
-  if (node.children.StringLiteral) {
-    return extractStringLiteral(node);
-  } else if (node.children.NumberLiteral) {
-    return extractFloat(node);
-  } else if (node.children.TrueLiteral) {
-    return true;
-  } else if (node.children.FalseLiteral) {
-    return false;
-  } else if (node.children.NullLiteral) {
-    return null;
-  } else if (node.children.bracketArray) {
+  if (node.children.StringLiteral) return extractStringLiteral(node);
+  if (node.children.NumberLiteral) return extractFloat(node);
+  if (node.children.TrueLiteral) return true;
+  if (node.children.FalseLiteral) return false;
+  if (node.children.NullLiteral) return null;
+  if (node.children.bracketArray) {
     return extractBracketArray(node.children.bracketArray[0]);
   }
   return undefined;
+}
+
+function extractBracketArray(arrayNode) {
+  const items = [];
+  arrayNode.children.value?.forEach(v => {
+    items.push(extractValue(v));
+  });
+  return items;
 }
 
 
@@ -167,20 +150,22 @@ function parseItem(sectionText) {
   const cst = parser.section();
   if (parser.errors.length) throw new Error(parser.errors[0].message);
 
-  let obj = {};
-
   if (cst.children.keyValue) {
+    const obj = {};
     cst.children.keyValue.forEach(kv => {
       const key = kv.children.Identifier[0].image;
       obj[key] = extractValue(kv.children.value[0]);
     });
+    return obj;
   }
 
   if (cst.children.arrayItem) {
     const items = [];
     let currentSubArray = null;
+
     for (const item of cst.children.arrayItem) {
       let value;
+
       if (item.children.keyValueSet) {
         value = {};
         item.children.keyValueSet[0].children.keyValue.forEach(kv => {
@@ -190,14 +175,10 @@ function parseItem(sectionText) {
       } else if (item.children.value) {
         value = extractValue(item.children.value[0]);
       }
-      
+
       if (item.children.Dash) {
         if (currentSubArray) {
-          if (currentSubArray.length === 1) {
-            items.push(currentSubArray[0]);
-          } else {
-            items.push(currentSubArray);
-          }
+          items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
         }
         currentSubArray = [value];
       } else if (item.children.Comma) {
@@ -208,24 +189,20 @@ function parseItem(sectionText) {
         }
       }
     }
+
     if (currentSubArray) {
-      if (currentSubArray.length === 1) {
-        items.push(currentSubArray[0]);
-      } else {
-        items.push(currentSubArray);
-      }
+      items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
     }
-    obj = items;
+
+    return items;
   }
 
   if (cst.children.value) {
-    const values = cst.children.value.map((v) => {
-      return extractValue(v);
-    });
-    obj = values.length === 1 ? values[0] : values;
+    const values = cst.children.value.map(v => extractValue(v));
+    return values.length === 1 ? values[0] : values;
   }
 
-  return obj;
+  return {};
 }
 
 function parseSection(node, trust, root = null) {
@@ -375,8 +352,6 @@ function parseMON(text, trust = 1) {
         if (!inCommentBlock) current.content.push(line);
         break;
 
-      case '-':
-      case ',':
       default:
         if (!inCommentBlock) current.content.push(line);
         break;
