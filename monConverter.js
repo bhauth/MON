@@ -328,7 +328,7 @@ function parseMON(text, trust = 1) {
         const isComment = firstChar === '/';
         let isDitto = firstChar === "'";
         let isTemplate = false;
-        let isCode = firstChar === ":";
+        let isCode = firstChar === ";";
 
         while (stack.length && stack[stack.length - 1].level >= level) {
           stack.pop();
