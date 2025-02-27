@@ -353,11 +353,14 @@ function parseMON(text, trust = 1) {
           node.children = [...lastValidNodes[level].children];
         }
 
-        current.children.push(node);
-        if (!isComment) stack.push(node);
+        if (!isComment) {
+          stack.push(node);
+          current.children.push(node);
+        }
         current = node;
 
-        if (nodeType === NodeType.NORMAL || nodeType === NodeType.TEMPLATE) {
+        if (!isDitto
+            && (nodeType === NodeType.NORMAL || nodeType === NodeType.TEMPLATE)) {
           lastValidNodes[level] = node;
         }
 
