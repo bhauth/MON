@@ -246,7 +246,7 @@ function parseItem(sectionText) {
   return obj;
 }
 
-function parseSection(node, trust) {
+function parseSection(node, trust, root = null) {
   switch (node.nodeType) {
     case NodeType.COMMENT:
     case NodeType.CODE:
@@ -270,8 +270,8 @@ function parseSection(node, trust) {
         if (trust >= 2) {
           const code = child.content.join('\n');
           try {
-            const fn = new Function(code);
-            const result = fn.call(obj);
+            const fn = new Function(trust >= 3 ? 'root' : '', code);
+            const result = fn.call(obj, trust >= 3 ? root : undefined);
             if (result !== undefined) {
               childData = result;
             }
@@ -285,7 +285,7 @@ function parseSection(node, trust) {
 
       case NodeType.NORMAL:
       default:
-      childData = parseSection(child, trust);
+      childData = parseSection(child, trust, root || obj);
       break;
     }
 
@@ -413,7 +413,7 @@ async function main() {
   for (const inputFilename of args) {
     try {
       const inputText = await fs.readFile(inputFilename, 'utf8');
-      const dataObject = parseMON(inputText, 2);
+      const dataObject = parseMON(inputText, 3);
       
       const inputDir = path.dirname(inputFilename);
       const inputBaseName = path.basename(inputFilename, path.extname(inputFilename));
