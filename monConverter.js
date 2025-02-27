@@ -11,12 +11,15 @@ const LBracket = createToken({ name: 'LBracket', pattern: /\[/ });
 const RBracket = createToken({ name: 'RBracket', pattern: /]/ });
 const Equals = createToken({ name: 'Equals', pattern: /=/ });
 const StringLiteral = createToken({ name: 'StringLiteral', pattern: /"[^"]*"/, line_breaks: true });
+const TrueLiteral = createToken({ name: 'TrueLiteral', pattern: /\btrue\b/ });
+const FalseLiteral = createToken({ name: 'FalseLiteral', pattern: /\bfalse\b/ });
+const NullLiteral = createToken({ name: 'NullLiteral', pattern: /\bnull\b/ });
 const Identifier = createToken({ name: 'Identifier', pattern: /[a-zA-Z_]\w*/ });
 const NumberLiteral = createToken({ name: 'NumberLiteral', pattern: /(\d*\.\d+|\d+\.?\d*)/ });
 const WhiteSpace = createToken({ name: 'WhiteSpace', pattern: /\s+/, group: Lexer.SKIPPED });
 
 const allTokens = [
-  WhiteSpace, CommentLine, Hash, Slash, Dash, Comma, LBracket, RBracket, Equals, StringLiteral, Identifier, NumberLiteral
+  WhiteSpace, CommentLine, Hash, Slash, Dash, Comma, LBracket, RBracket, Equals, TrueLiteral, FalseLiteral, NullLiteral, StringLiteral, Identifier, NumberLiteral
 ];
 const lexer = new Lexer(allTokens);
 
@@ -30,7 +33,7 @@ class MONParser extends CstParser {
         $.OR([
           { ALT: () => $.SUBRULE($.keyValue) },
           { ALT: () => $.SUBRULE($.arrayItem) },
-          { ALT: () => $.SUBRULE($.plainValue) }
+          { ALT: () => $.SUBRULE($.value) }
         ]);
       });
     });
@@ -38,47 +41,27 @@ class MONParser extends CstParser {
     $.RULE('keyValue', () => {
       $.CONSUME(Identifier);
       $.CONSUME(Equals);
-      $.OR([
-        { ALT: () => $.CONSUME(StringLiteral) },
-        { ALT: () => $.CONSUME(NumberLiteral) },
-        { ALT: () => $.SUBRULE($.bracketArray) }
-      ]);
+      $.SUBRULE($.value);
     });
 
     $.RULE('arrayItem', () => {
       $.OR([
         { ALT: () => {
           $.CONSUME(Dash);
-          $.CONSUME(StringLiteral);
-        }},
-        { ALT: () => {
-          $.CONSUME2(Dash);
-          $.CONSUME(NumberLiteral);
-        }},
-        { ALT: () => {
-          $.CONSUME3(Dash);
-          $.SUBRULE($.bracketArray);
-        }},
-        { ALT: () => {
-          $.CONSUME4(Dash);
-          $.SUBRULE($.keyValueSet);
-        }},
+          $.SUBRULE($.value);
+          }},
         { ALT: () => {
           $.CONSUME(Comma);
-          $.CONSUME2(StringLiteral);
-        }},
+          $.SUBRULE2($.value);
+          }},
+        { ALT: () => {
+          $.CONSUME2(Dash);
+          $.SUBRULE($.keyValueSet);
+          }},
         { ALT: () => {
           $.CONSUME2(Comma);
-          $.CONSUME2(NumberLiteral);
-        }},
-        { ALT: () => {
-          $.CONSUME3(Comma);
-          $.SUBRULE2($.bracketArray);
-        }},
-        { ALT: () => {
-          $.CONSUME4(Comma);
           $.SUBRULE2($.keyValueSet);
-        }}
+          }}
       ]);
     });
 
@@ -98,6 +81,9 @@ class MONParser extends CstParser {
       $.OR([
         { ALT: () => $.CONSUME(StringLiteral) },
         { ALT: () => $.CONSUME(NumberLiteral) },
+        { ALT: () => $.CONSUME(TrueLiteral) },
+        { ALT: () => $.CONSUME(FalseLiteral) },
+        { ALT: () => $.CONSUME(NullLiteral) },
         { ALT: () => $.SUBRULE($.bracketArray) }
       ]);
     });
@@ -106,13 +92,6 @@ class MONParser extends CstParser {
       $.AT_LEAST_ONE(() => {
         $.SUBRULE($.keyValue);
       });
-    });
-
-    $.RULE('plainValue', () => {
-      $.OR([
-        { ALT: () => $.CONSUME(StringLiteral) },
-        { ALT: () => $.CONSUME(NumberLiteral) }
-      ]);
     });
 
     this.performSelfAnalysis();
@@ -137,12 +116,36 @@ function extractBracketArray(arrayNode) {
       items.push(extractStringLiteral(v));
     } else if (v.children.NumberLiteral) {
       items.push(extractFloat(v));
+    } else if (v.children.TrueLiteral) {
+      items.push(true);
+    } else if (v.children.FalseLiteral) {
+      items.push(false);
+    } else if (v.children.NullLiteral) {
+      items.push(null);
     } else if (v.children.bracketArray) {
       items.push(extractBracketArray(v.children.bracketArray[0]));
     }
   });
   return items;
 }
+
+function extractValue(node) {
+  if (node.children.StringLiteral) {
+    return extractStringLiteral(node);
+  } else if (node.children.NumberLiteral) {
+    return extractFloat(node);
+  } else if (node.children.TrueLiteral) {
+    return true;
+  } else if (node.children.FalseLiteral) {
+    return false;
+  } else if (node.children.NullLiteral) {
+    return null;
+  } else if (node.children.bracketArray) {
+    return extractBracketArray(node.children.bracketArray[0]);
+  }
+  return undefined;
+}
+
 
 function countLeadingHashes(line) {
   let count = 0;
@@ -169,15 +172,7 @@ function parseItem(sectionText) {
   if (cst.children.keyValue) {
     cst.children.keyValue.forEach(kv => {
       const key = kv.children.Identifier[0].image;
-      let value;
-      if (kv.children.StringLiteral) {
-        value = extractStringLiteral(kv);
-      } else if (kv.children.NumberLiteral) {
-        value = extractFloat(kv);
-      } else if (kv.children.bracketArray) {
-        value = extractBracketArray(kv.children.bracketArray[0]);
-      }
-      obj[key] = value;
+      obj[key] = extractValue(kv.children.value[0]);
     });
   }
 
@@ -186,25 +181,16 @@ function parseItem(sectionText) {
     let currentSubArray = null;
     for (const item of cst.children.arrayItem) {
       let value;
-      if (item.children.StringLiteral) {
-        value = extractStringLiteral(item);
-      } else if (item.children.NumberLiteral) {
-        value = extractFloat(item);
-      } else if (item.children.bracketArray) {
-        value = extractBracketArray(item.children.bracketArray[0]);
-      } else if (item.children.keyValueSet) {
+      if (item.children.keyValueSet) {
         value = {};
         item.children.keyValueSet[0].children.keyValue.forEach(kv => {
           const key = kv.children.Identifier[0].image;
-          if (kv.children.StringLiteral) {
-            value[key] = extractStringLiteral(kv);
-          } else if (kv.children.NumberLiteral) {
-            value[key] = extractFloat(kv);
-          } else if (kv.children.bracketArray) {
-            value[key] = extractBracketArray(kv.children.bracketArray[0]);
-          }
+          value[key] = extractValue(kv.children.value[0]);
         });
+      } else if (item.children.value) {
+        value = extractValue(item.children.value[0]);
       }
+      
       if (item.children.Dash) {
         if (currentSubArray) {
           if (currentSubArray.length === 1) {
@@ -232,15 +218,11 @@ function parseItem(sectionText) {
     obj = items;
   }
 
-  if (cst.children.plainValue) {
-    const plainValues = cst.children.plainValue.map((pv) => {
-      if (pv.children.StringLiteral) {
-        return extractStringLiteral(pv);
-      } else if (pv.children.NumberLiteral) {
-        return extractFloat(pv);
-      }
+  if (cst.children.value) {
+    const values = cst.children.value.map((v) => {
+      return extractValue(v);
     });
-    obj = plainValues.length === 1 ? plainValues[0] : plainValues;
+    obj = values.length === 1 ? values[0] : values;
   }
 
   return obj;

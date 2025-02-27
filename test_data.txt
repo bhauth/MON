@@ -2,11 +2,11 @@
 root_item = ["nested", ["bracket", ["array"]]]
 
 # alpha
-11
+"a"
 
 # beta
-22
-33
+true
+[false, null]
 
 # gamma
 g = "is for gamma"
@@ -37,9 +37,9 @@ Until hitting a lower-level header.
 - 0
 - 1
 - 2
-  , 22
+  , 2.2
 - 3
-  , 33
+  , 3.3
 
 # zeta.0
 "replaced zero in zeta"
