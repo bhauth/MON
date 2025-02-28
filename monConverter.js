@@ -232,8 +232,12 @@ function parseSection(node, trust, root = null) {
   }
   
   let obj = {};
-  if (node.content.length) {
-    obj = parseItem(node.content.join('\n'));
+  try {
+    if (node.content.length) {
+      obj = parseItem(node.content.join('\n'));
+    }
+  } catch (err) {
+    throw new Error(`\nParser error in section "${node.name}":\n${err.message}`)
   }
   
   let childData = {};
