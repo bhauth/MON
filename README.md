@@ -16,7 +16,7 @@ An initial implementation is available [here](https://github.com/bhauth/MON). Us
 - install Node if you haven't
 - cd \[directory\]
 - npm install
-- node monConverter.js \[one or more files\]
+- node monTool.js \[one or more files\]
 
 That generates .json files from the input files.
 
@@ -26,8 +26,6 @@ Note that Node takes hundreds of milliseconds to start up. Bun starts up ~2x as 
 ## VS existing formats
 
 ### JSON
-
-#### problems for humans
 
 Deep nesting with parentheses is hard to read. People aren't good at keeping track of where in the hierarchy they are. That's why people use indentation, but then either you have significant whitespace (eg Python) or 2 systems with potential mismatch. Also, deep nesting means indentation takes up a lot of space, and it's hard to see the exact depth of deep indentation.
 
@@ -83,9 +81,10 @@ So, this post and design is dedicated to Aaron Swartz.
 Let's look at how test_data.mon is processed.
 
     - cd \[directory\]
-    - node monConverter.js test_data.mon
+    - node monTool.js test_data.mon
 
 That produces a test_data.json file. Let's compare it to the input.
+
 
 ### key-value pairs
 
@@ -105,29 +104,58 @@ That produces a test_data.json file. Let's compare it to the input.
     
 We can use key-value pairs, and data in nested brackets.
 
+### quoted keys
+
+    'single quotes' = "allow for spaces in keys"
+        
+        🡺
+    
+    "single quotes": "allow for spaces in keys",
+
+Keys may be quoted with single quotes. Strings must be quoted with double quotes.
+
+### text blocks
+
+    #" Text Block
+    You can freely use
+    symbols like " and = in this text.
+    
+    ## nested text
+    can go in these too.
+
+        🡺
+    
+    "Text Block": "You can freely use\nsymbols like \" and = in this text.\n# nested text\ncan go in these too.",
+
+
+Adding **"** to the end of a **#** header makes that section and all its subsections a text block. Subsection headers are trimmed by the starting level.
+
+
 ### section headers
 
     # alpha
-    "a"
+    "A"
     
     # beta
-    true
-    [false, null]
+    bools = [true, false]
+    'null' = null
     
     🡺 
     
-    "alpha": "a",
-    "beta": [
-      true,
-      [
-        false,
-        null
-      ]
-    ],
+    "alpha": "A",
+    "beta": {
+      "bools": [
+        true,
+        false
+      ],
+      "null": null
+    },
 
-We can put one or more items under # headers. If there are multiple items, they're put into an array. (The other ways to define arrays are preferred, because they're clearer and can mix in key-value pairs with data.)
+We can put one or more values or key-value pairs under # headers. If there are multiple values, the first one is taken.
 
-Like in JSON, data can be a string, a float, true, false, or null.
+Like in JSON, values can be a string, a float, true, false, or null.
+
+Subsections are added to their parent section as keys, so only sections that are empty or have key-value pairs may have subsections.
 
 ### nesting in existing items
 
