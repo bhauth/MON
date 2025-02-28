@@ -20,7 +20,7 @@ const NumberLiteral = createToken({ name: 'NumberLiteral', pattern: /(\d*\.\d+|\
 const WhiteSpace = createToken({ name: 'WhiteSpace', pattern: /\s+/, group: Lexer.SKIPPED });
 
 const allTokens = [
-  WhiteSpace, CommentLine, Hash, Slash, Dash, Comma, LBracket, RBracket, Equals,QuotedIdentifier, TrueLiteral, FalseLiteral, NullLiteral, StringLiteral, Identifier, NumberLiteral
+  WhiteSpace, CommentLine, Hash, Slash, Dash, Comma, LBracket, RBracket, Equals, QuotedIdentifier, TrueLiteral, FalseLiteral, NullLiteral, StringLiteral, Identifier, NumberLiteral
 ];
 const lexer = new Lexer(allTokens);
 
@@ -136,15 +136,6 @@ function extractBracketArray(arrayNode) {
   });
   return items;
 }
-
-
-function countLeadingHashes(line) {
-  let count = 0;
-  while (line[count] === '#') count++;
-  return count;
-}
-
-
 
 function extractKeyValueSet(kvChildren) {
   const obj = {};
@@ -298,6 +289,12 @@ function parseSection(node, trust, root = null) {
   return obj;
 }
 
+function countLeadingHashes(line) {
+  let count = 0;
+  while (line[count] === '#') count++;
+  return count;
+}
+
 // main function
 function parseMON(text, trust = 1) {
   const lines = text.split('\n');
@@ -320,7 +317,7 @@ function parseMON(text, trust = 1) {
     }
 
     switch (line[0]) {
-      case '#':
+    case '#':
       const level = countLeadingHashes(line);
       
       if (textLevel && level > textLevel) {
