@@ -12,7 +12,7 @@ symbols like " and = in this text.
 
 # beta
 bools = [true, false]
-n = null
+'null' = null
 
 # gamma
 g = "is for gamma"

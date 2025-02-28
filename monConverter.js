@@ -20,7 +20,7 @@ const NumberLiteral = createToken({ name: 'NumberLiteral', pattern: /(\d*\.\d+|\
 const WhiteSpace = createToken({ name: 'WhiteSpace', pattern: /\s+/, group: Lexer.SKIPPED });
 
 const allTokens = [
-  WhiteSpace, CommentLine, Hash, Slash, Dash, Comma, LBracket, RBracket, Equals, TrueLiteral, FalseLiteral, NullLiteral, QuotedIdentifier, StringLiteral, Identifier, NumberLiteral
+  WhiteSpace, CommentLine, Hash, Slash, Dash, Comma, LBracket, RBracket, Equals,QuotedIdentifier, TrueLiteral, FalseLiteral, NullLiteral, StringLiteral, Identifier, NumberLiteral
 ];
 const lexer = new Lexer(allTokens);
 
