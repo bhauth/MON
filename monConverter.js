@@ -144,6 +144,22 @@ function countLeadingHashes(line) {
   return count;
 }
 
+
+
+function extractKeyValueSet(kvChildren) {
+  const obj = {};
+  kvChildren.keyValue.forEach(kv => {
+    let key;
+    if (kv.children.QuotedIdentifier) {
+      key = extractQuotedIdentifier(kv);
+    } else {
+      key = kv.children.Identifier[0].image;
+    }
+    obj[key] = extractValue(kv.children.value[0]);
+  });
+  return obj;
+}
+
 function parseItem(sectionText) {
   const lexResult = lexer.tokenize(sectionText);
   if (lexResult.errors.length) throw new Error(lexResult.errors[0].message);
@@ -152,17 +168,7 @@ function parseItem(sectionText) {
   if (parser.errors.length) throw new Error(parser.errors[0].message);
 
   if (cst.children.keyValue) {
-    const obj = {};
-    cst.children.keyValue.forEach(kv => {
-      let key;
-      if (kv.children.QuotedIdentifier) {
-        key = extractQuotedIdentifier(kv);
-      } else {
-        key = kv.children.Identifier[0].image;
-      }
-      obj[key] = extractValue(kv.children.value[0]);
-    });
-    return obj;
+    return extractKeyValueSet(cst.children);
   }
 
   if (cst.children.arrayItem) {
@@ -173,16 +179,7 @@ function parseItem(sectionText) {
       let value;
 
       if (item.children.keyValueSet) {
-        value = {};
-        item.children.keyValueSet[0].children.keyValue.forEach(kv => {
-          let key;
-          if (kv.children.QuotedIdentifier) {
-            key = extractQuotedIdentifier(kv);
-          } else {
-            key = kv.children.Identifier[0].image;
-          }
-          value[key] = extractValue(kv.children.value[0]);
-        });
+        value = extractKeyValueSet(item.children.keyValueSet[0].children);
       } else if (item.children.value) {
         value = extractValue(item.children.value[0]);
       }
