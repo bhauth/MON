@@ -11,6 +11,7 @@ const LBracket = createToken({ name: 'LBracket', pattern: /\[/ });
 const RBracket = createToken({ name: 'RBracket', pattern: /]/ });
 const Equals = createToken({ name: 'Equals', pattern: /=/ });
 const StringLiteral = createToken({ name: 'StringLiteral', pattern: /"[^"]*"/, line_breaks: true });
+const QuotedIdentifier = createToken({ name: 'QuotedIdentifier', pattern: /'[^"]*'/, line_breaks: false });
 const TrueLiteral = createToken({ name: 'TrueLiteral', pattern: /\btrue\b/ });
 const FalseLiteral = createToken({ name: 'FalseLiteral', pattern: /\bfalse\b/ });
 const NullLiteral = createToken({ name: 'NullLiteral', pattern: /\bnull\b/ });
@@ -19,7 +20,7 @@ const NumberLiteral = createToken({ name: 'NumberLiteral', pattern: /(\d*\.\d+|\
 const WhiteSpace = createToken({ name: 'WhiteSpace', pattern: /\s+/, group: Lexer.SKIPPED });
 
 const allTokens = [
-  WhiteSpace, CommentLine, Hash, Slash, Dash, Comma, LBracket, RBracket, Equals, TrueLiteral, FalseLiteral, NullLiteral, StringLiteral, Identifier, NumberLiteral
+  WhiteSpace, CommentLine, Hash, Slash, Dash, Comma, LBracket, RBracket, Equals, TrueLiteral, FalseLiteral, NullLiteral, QuotedIdentifier, StringLiteral, Identifier, NumberLiteral
 ];
 const lexer = new Lexer(allTokens);
 
@@ -39,7 +40,10 @@ class MONParser extends CstParser {
     });
 
     $.RULE('keyValue', () => {
-      $.CONSUME(Identifier);
+      $.OR([
+        { ALT: () => $.CONSUME(QuotedIdentifier) },
+        { ALT: () => $.CONSUME(Identifier) }
+      ]);
       $.CONSUME(Equals);
       $.SUBRULE($.value);
     });
@@ -101,6 +105,10 @@ class MONParser extends CstParser {
 const parser = new MONParser();
 
 
+function extractQuotedIdentifier(node) {
+  return node.children.QuotedIdentifier[0].image.slice(1, -1);
+}
+
 function extractStringLiteral(node) {
   return node.children.StringLiteral[0].image.slice(1, -1);
 }
@@ -153,7 +161,12 @@ function parseItem(sectionText) {
   if (cst.children.keyValue) {
     const obj = {};
     cst.children.keyValue.forEach(kv => {
-      const key = kv.children.Identifier[0].image;
+      let key;
+      if (kv.children.QuotedIdentifier) {
+        key = extractQuotedIdentifier(kv);
+      } else {
+        key = kv.children.Identifier[0].image;
+      }
       obj[key] = extractValue(kv.children.value[0]);
     });
     return obj;
@@ -169,7 +182,12 @@ function parseItem(sectionText) {
       if (item.children.keyValueSet) {
         value = {};
         item.children.keyValueSet[0].children.keyValue.forEach(kv => {
-          const key = kv.children.Identifier[0].image;
+          let key;
+          if (kv.children.QuotedIdentifier) {
+            key = extractQuotedIdentifier(kv);
+          } else {
+            key = kv.children.Identifier[0].image;
+          }
           value[key] = extractValue(kv.children.value[0]);
         });
       } else if (item.children.value) {
