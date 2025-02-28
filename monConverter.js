@@ -206,8 +206,7 @@ function parseItem(sectionText) {
   }
 
   if (cst.children.value) {
-    const values = cst.children.value.map(v => extractValue(v));
-    return values.length === 1 ? values[0] : values;
+    return extractValue(cst.children.value[0]);
   }
 
   return {};
