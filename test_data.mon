@@ -1,16 +1,18 @@
 
 root_item = ["nested", ["bracket", ["array"]]]
 
+'single quotes' = "allow for spaces in keys"
+
 #" Text Block
 You can freely use
 symbols like " and = in this text.
 
 # alpha
-"a"
+"A"
 
 # beta
-true
-[false, null]
+bools = [true, false]
+n = null
 
 # gamma
 g = "is for gamma"
