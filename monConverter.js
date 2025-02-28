@@ -303,87 +303,87 @@ function parseMON(text, trust = 1) {
   const lines = text.split('\n');
   let stack = [{ level: 0, name: '', content: [], children: [] }];
   let current = stack[0];
-  let inCommentBlock = false;
-  let commentLevel = 0;
   let lastValidNodes = [];
+
+  let commentLevel = 0;
+  let textLevel = 0;
 
   // build hierarchy
   for (let line of lines) {
     line = line.trimStart();
     if (!line) continue;
 
-    if (inCommentBlock) {
-      if (line.startsWith('#')) {
-        const level = countLeadingHashes(line);
-        if (level <= commentLevel) inCommentBlock = false;
-        else continue;
-      } else {
-        continue;
-      }
+    if (commentLevel) {
+      if (line.startsWith('#') && (countLeadingHashes(line) <= commentLevel)) {
+        commentLevel = 0;
+      } else continue;
     }
 
     switch (line[0]) {
       case '#':
-        const level = countLeadingHashes(line);
-        
-        let nodeType = NodeType.NORMAL;
-        let isComment = false;
-        let isDitto = false;
-        let isTemplate = false;
-        let isCode = false;
-        let isText = false;
-        
-        switch (line[level]) {
-        case '/': isComment = true; nodeType = NodeType.COMMENT; break;
-        case '"': isText = true; nodeType = NodeType.TEXT; break;
-        case '=': isDitto = true; break;
-        case ';': isCode = true; nodeType = NodeType.CODE; break;
-        }
+      const level = countLeadingHashes(line);
+      
+      if (textLevel && level > textLevel) {
+        current.content.push(line.slice(textLevel).trim());
+        continue;
+      }
+      
+      let nodeType = NodeType.NORMAL;
+      let isComment = false;
+      let isDitto = false;
+      let isTemplate = false;
+      let isCode = false;
+      textLevel = 0;
+      
+      switch (line[level]) {
+      case '/': isComment = true; nodeType = NodeType.COMMENT; break;
+      case '"': textLevel = level; nodeType = NodeType.TEXT; break;
+      case '=': isDitto = true; break;
+      case ';': isCode = true; nodeType = NodeType.CODE; break;
+      }
 
-        while (stack.length && stack[stack.length - 1].level >= level) {
-          stack.pop();
-        }
-        current = stack[stack.length - 1];
-        
-        if (isDitto && current.children.length === 0) {
-          isDitto = false;
-          isTemplate = true;
-          nodeType = NodeType.TEMPLATE;
-        }
-        
-        let headerLength = isDitto || (nodeType != NodeType.NORMAL) ? level + 1 : level;
-        let name = line.slice(headerLength).trim();
-        const node = { level, name, content: [], children: [], nodeType };
-        if (isDitto && trust > 0 && lastValidNodes[level]) {
-          node.content = [...lastValidNodes[level].content];
-          node.children = [...lastValidNodes[level].children];
-        }
+      if (isComment) {
+        commentLevel = level;
+        continue;
+      }
 
-        if (!isComment) {
-          stack.push(node);
-          current.children.push(node);
-        }
-        current = node;
+      while (stack.length && stack[stack.length - 1].level >= level) {
+        stack.pop();
+      }
+      current = stack[stack.length - 1];
+      
+      if (isDitto && current.children.length === 0) {
+        isDitto = false;
+        isTemplate = true;
+        nodeType = NodeType.TEMPLATE;
+      }
+      
+      let headerLength = isDitto || (nodeType != NodeType.NORMAL) ? level + 1 : level;
+      let name = line.slice(headerLength).trim();
+      const node = { level, name, content: [], children: [], nodeType };
+      if (isDitto && trust > 0 && lastValidNodes[level]) {
+        node.content = [...lastValidNodes[level].content];
+        node.children = [...lastValidNodes[level].children];
+      }
 
-        if (!isDitto
-            && (nodeType === NodeType.NORMAL || nodeType === NodeType.TEMPLATE)) {
-          lastValidNodes[level] = node;
-        }
+      stack.push(node);
+      current.children.push(node);
+      current = node;
 
-        if (isComment) {
-          inCommentBlock = true;
-          commentLevel = level;
-        }
-        break;
+      if (!isDitto
+          && (nodeType === NodeType.NORMAL || nodeType === NodeType.TEMPLATE)) {
+        lastValidNodes[level] = node;
+      }
+      break;
 
-      case '/':
-        if (line.startsWith('//')) continue;
-        if (!inCommentBlock) current.content.push(line);
-        break;
+    case '/':
+      if (line.startsWith('//')) continue;
+      current.content.push(line);
+      break;
 
-      default:
-        if (!inCommentBlock) current.content.push(line);
-        break;
+    default:
+      current.content.push(line);
+      break;
     }
   }
 

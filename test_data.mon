@@ -7,6 +7,9 @@ root_item = ["nested", ["bracket", ["array"]]]
 You can freely use
 symbols like " and = in this text.
 
+## nested text
+can go in these too.
+
 # alpha
 "A"
 
