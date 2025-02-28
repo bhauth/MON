@@ -144,13 +144,6 @@ function countLeadingHashes(line) {
   return count;
 }
 
-const NodeType = {
-  TEMPLATE: 'TEMPLATE',
-  CODE: 'CODE',
-  COMMENT: 'COMMENT',
-  NORMAL: 'NORMAL',
-};
-
 function parseItem(sectionText) {
   const lexResult = lexer.tokenize(sectionText);
   if (lexResult.errors.length) throw new Error(lexResult.errors[0].message);
@@ -223,49 +216,63 @@ function parseItem(sectionText) {
   return {};
 }
 
+const NodeType = {
+  NORMAL: 'NORMAL',
+  COMMENT: 'COMMENT',
+  TEXT: 'TEXT',
+  TEMPLATE: 'TEMPLATE',
+  CODE: 'CODE',
+};
+
 function parseSection(node, trust, root = null) {
-  switch (node.nodeType) {
-    case NodeType.COMMENT:
-    case NodeType.CODE:
-      return null;
-    default: break;
-  }
-  
   let obj = {};
-  try {
-    if (node.content.length) {
-      obj = parseItem(node.content.join('\n'));
+  
+  switch (node.nodeType) {
+  case NodeType.COMMENT:
+  case NodeType.CODE:
+    return null;
+  
+  case NodeType.TEXT:
+    return node.content.join('\n');
+    break;
+  
+  default:
+    try {
+      if (node.content.length) {
+        obj = parseItem(node.content.join('\n'));
+      }
+    } catch (err) {
+      throw new Error(`\nParser error in section "${node.name}":\n${err.message}`)
     }
-  } catch (err) {
-    throw new Error(`\nParser error in section "${node.name}":\n${err.message}`)
+    break;
   }
   
   let childData = {};
   for (const child of node.children) {
     switch (child.nodeType) {
-      
-      case NodeType.TEMPLATE:
-        continue;
-      
-      case NodeType.CODE:
-        if (trust >= 2) {
-          const code = child.content.join('\n');
-          try {
-            const fn = new Function(trust >= 3 ? 'root' : '', code);
-            const result = fn.call(obj, trust >= 3 ? root : undefined);
-            if (result !== undefined) {
-              childData = result;
-            }
-          } catch (error) {
-            console.error('Error executing code block:', error);
+    
+    case NodeType.TEMPLATE:
+      continue;
+    
+    case NodeType.CODE:
+      if (trust >= 2) {
+        const code = child.content.join('\n');
+        try {
+          const fn = new Function(trust >= 3 ? 'root' : '', code);
+          const result = fn.call(obj, trust >= 3 ? root : undefined);
+          if (result !== undefined) {
+            childData = result;
           }
-        } else {
-          console.log('Code block skipped due to trust level.');
+        } catch (error) {
+          console.error('Error executing code block:', error);
         }
-        break;
-
-      case NodeType.NORMAL:
-      default:
+      } else {
+        console.log('Code block skipped due to trust level.');
+      }
+      break;
+    
+    case NodeType.NORMAL:
+    default:
       childData = parseSection(child, trust, root || obj);
       break;
     }
@@ -322,12 +329,20 @@ function parseMON(text, trust = 1) {
     switch (line[0]) {
       case '#':
         const level = countLeadingHashes(line);
-        const firstChar = line[level];
         
-        const isComment = firstChar === '/';
-        let isDitto = firstChar === "=";
+        let nodeType = NodeType.NORMAL;
+        let isComment = false;
+        let isDitto = false;
         let isTemplate = false;
-        let isCode = firstChar === ";";
+        let isCode = false;
+        let isText = false;
+        
+        switch (line[level]) {
+        case '/': isComment = true; nodeType = NodeType.COMMENT; break;
+        case '"': isText = true; nodeType = NodeType.TEXT; break;
+        case '=': isDitto = true; break;
+        case ';': isCode = true; nodeType = NodeType.CODE; break;
+        }
 
         while (stack.length && stack[stack.length - 1].level >= level) {
           stack.pop();
@@ -337,13 +352,9 @@ function parseMON(text, trust = 1) {
         if (isDitto && current.children.length === 0) {
           isDitto = false;
           isTemplate = true;
+          nodeType = NodeType.TEMPLATE;
         }
         
-        let nodeType = isComment ? NodeType.COMMENT :
-          isTemplate ? NodeType.TEMPLATE :
-          isCode ? NodeType.CODE :
-          NodeType.NORMAL;
-
         let headerLength = isDitto || (nodeType != NodeType.NORMAL) ? level + 1 : level;
         let name = line.slice(headerLength).trim();
         const node = { level, name, content: [], children: [], nodeType };

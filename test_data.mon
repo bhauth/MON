@@ -1,6 +1,10 @@
 
 root_item = ["nested", ["bracket", ["array"]]]
 
+#" Text Block
+You can freely use
+symbols like " and = in this text.
+
 # alpha
 "a"
 
