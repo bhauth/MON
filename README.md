@@ -232,20 +232,20 @@ In Javascript, strings of numbers are converted to numeric array indices when us
 
     # people
     ##/ templates are not output
-    ##' employee_template
+    ##= employee_template
     role = "employee"
     
     // ditto copies above
-    ##' bob
+    ##= bob
     status = "active"
     
-    ##' joe
+    ##= joe
     
     ##; code
     console.log("Send a message in a bottle.");
     return `Bob's role is ${this.bob.role}.`;
     
-    #' people_copy
+    #= people_copy
 
     🡺
 
@@ -270,7 +270,7 @@ In Javascript, strings of numbers are converted to numeric array indices when us
       "code": "Bob's role is employee."
     }
 
-Using **##'** makes a section a template (if it's a first subsection) or a ditto (otherwise). A template is not output. A ditto copies the most recent non-ditto section, and can have additional data added.
+Using **##=** makes a section a template (if it's a first subsection) or a ditto (otherwise). A template is not output. A ditto copies the most recent non-ditto section, and can have additional data added.
 
 Ditto sections can produce exponential amounts of data, so they're only allowed if **trust ≥ 1**.
 

@@ -46,17 +46,17 @@ Until hitting a lower-level header.
 
 # people
 ##/ templates are not output
-##' employee_template
+##= employee_template
 role = "employee"
 
 // ditto copies above
-##' bob
+##= bob
 status = "active"
 
-##' joe
+##= joe
 
 ##; code
 console.log("Send a message in a bottle.");
 return `Bob's role is ${this.bob.role}.`;
 
-#' people_copy
+#= people_copy

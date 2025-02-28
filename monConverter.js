@@ -325,7 +325,7 @@ function parseMON(text, trust = 1) {
         const firstChar = line[level];
         
         const isComment = firstChar === '/';
-        let isDitto = firstChar === "'";
+        let isDitto = firstChar === "=";
         let isTemplate = false;
         let isCode = firstChar === ";";
 
