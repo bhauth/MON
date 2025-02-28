@@ -4,17 +4,9 @@
 
 ## purpose
 
-This is a sketch of a new human-readable data format. I do think it's better than existing ones, but usually, new programming/data languages need backing from a major institution or celebrity-engineer to get established. So, this is mostly just a thought exercise.
+This is a sketch of a new human-readable data format. MON is meant to be easily converted to/from JSON and related formats, but be easier for humans to read and write with a text editor. It has similar goals to TOML and YAML, but is meant to handle **deeply nested** data in a more readable way than those formats.
 
-MON is meant to be a format for data that's easily converted to/from JSON and related formats, but be easier for humans to read and write with a text editor. It has similar goals to TOML and YAML, but is meant to handle **deeply nested** data in a more readable way than those formats.
-
-MON is also meant to handle schemas for data in it. There are already several perfectly good languages for schemas, such as CUE, Dhall, and XSD, but which one to use? I decided to go with whatever has the most stars on Github, and found this thing called TypeScript with 100k stars. So, the plan is:
-
-1. read MON files
-2. compile them to TypeScript for type validation
-3. compile the TypeScript to safe JS
-4. execute the JS to run any schema (checks + generation) of values and produce a JS object
-5. if necessary, convert the JS object to a JSON string
+I do think MON is better than current formats, but usually, new programming/data languages need backing from a major institution or celebrity-engineer to get established. However, you can use the code here to convert MON to JSON today, and that might be easier than writing JSON other ways.
 
 
 ## current implementation
@@ -26,34 +18,29 @@ An initial implementation is available [here](https://github.com/bhauth/MON). Us
 - npm install
 - node monConverter.js \[one or more files\]
 
-That generates .json files from the input files. Note that:
-- that code is probably terrible
-- it doesn't currently handle:
-    - schemas
-    - naming array elements to place data in them
-- Node takes hundreds of milliseconds to start up
+That generates .json files from the input files.
+
+Note that Node takes hundreds of milliseconds to start up. Bun starts up ~2x as fast as Node, but either way you want to batch processing.
 
 
-## some existing formats
+## VS existing formats
 
 ### JSON
 
 #### problems for humans
 
-deep nesting with parentheses is hard to read
+Deep nesting with parentheses is hard to read. People aren't good at keeping track of where in the hierarchy they are. That's why people use indentation, but then either you have significant whitespace (eg Python) or 2 systems with potential mismatch. Also, deep nesting means indentation takes up a lot of space, and it's hard to see the exact depth of deep indentation.
 
-People aren't good at keeping track of where in the hierarchy they are. That's why people use indentation, but then either you have significant whitespace (eg Python) or 2 systems with potential mismatch. Also, deep nesting means indentation takes up a lot of space, and it's hard to see the exact depth of deep indentation.
-
-same problem Lisp has. Instead of using () for everything, it's better to use multiple labels for demarcating blocks to indicate what's starting and ending.
+Lisp has the same problem, which is why it's not the most popular programming language. Instead of using () for everything, it's better to use multiple labels for demarcating blocks to indicate what's starting and ending.
 
 JSON doesn't have comments, and I think it should.
 
-#### problems for software
+I don't like being forced to quote keys.
 
-Some people say that JSON is meant to be handled by programs, not people, but its success comes from it being somewhat usable as plain text. If JSON isn't meant to be edited as text, then it should have length info so programs can find specific elements in a big file efficiently.
 
-JSON encodes all numbers as decimal strings, which is inefficient. Decimal numbers can get changed when loading JSON into Javascript and then exporting it again, so some people use their own string-number conversion system.
+### YAML
 
+YAML is complex, whitespace-sensitive, and does implicit conversions that can cause bugs. Various people have written [posts](https://hitchdev.com/strictyaml/why/implicit-typing-removed/) about [problems](https://ruudvanasseldonk.com/2023/01/11/the-yaml-document-from-hell) using YAML can cause.
 
 ### TOML
 
@@ -82,182 +69,239 @@ The problem with that approach is, repeating long sequences is bad. Suppose the 
 You probably see the problem here. I still consider that an improvement over editing JSON as text, but it's not ideal.
 
 
-
-## MON
+## Markdown
 
 There's already a popular format that solves some of the above problems: Markdown. The only problem is, there's no standardized way to use it as a data container.
 
-### Markdown history
-
-Markdown is generally credited to [John Gruber](https://daringfireball.net/projects/markdown/syntax),
-but personally I'd give more credit to [Aaron Swartz](https://en.wikipedia.org/wiki/Aaron_Swartz). Aaron is better-known for co-founding Reddit and for how he died, but he also designed [atx](http://www.aaronsw.com/2002/atx/intro.html), which has all the key elements of Markdown. Personally, I think the design of Gruber's additions is more questionable.
+Markdown is generally credited to [John Gruber](https://daringfireball.net/projects/markdown/syntax), but personally I'd give more credit to [Aaron Swartz](https://en.wikipedia.org/wiki/Aaron_Swartz). Aaron is better-known for co-founding Reddit and for how he died, but he also designed [atx](http://www.aaronsw.com/2002/atx/intro.html), which has all the key elements of Markdown. Personally, I think the design of Gruber's additions is more questionable.
 
 So, this post and design is dedicated to Aaron Swartz.
 
 
-### MON examples
+## MON features
 
-Here's the above example of TOML in MON.
+Let's look at how test_data.mon is processed.
 
-	# many.levels.deep.nested.stuff.servers
+    - cd \[directory\]
+    - node monConverter.js test_data.mon
 
-	## alpha
-	ip = "10.0.0.1"
-	role = "frontend"
+That produces a test_data.json file. Let's compare it to the input.
 
-	## beta
-	ip = "10.0.0.2"
-	role = "backend"
+### key-value pairs
 
-As in Markdown, each line without a  **\#**  header is nested in the most recent line with a  **\#**  header. Each line with a header is nested in the most recent line with a lower-level header, or (if none exists) in the root level.
-
-
-Documentation of Rusty Object Notation uses this example:
-
-	Scene(
-		 materials: { // this is a map
-			  "metal": (
-					reflectivity: 1.0,
-			  ),
-			  "plastic": (
-					reflectivity: 0.5,
-			  ),
-		 },
-		 entities: [ // this is an array
-			  (
-					name: "hero",
-					material: "metal",
-			  ),
-			  (
-					name: "monster",
-					material: "plastic",
-			  ),
-		 ],
-	)
-
-Here's the MON version of that:
+	root_item = ["nested", ["bracket", ["array"]]]
     
-	# Scene
-
-	## materials
-
-	### metal
-	reflectivity = 1.0
-
-	### plastic
-	reflectivity = 0.5
-
-	## entities
-	- 
-	name = "hero"
-	material = "metal"
-	- 
-	name = "monster"
-	material = "plastic"
-
-
-
-## design of MON
-
-### prefixes
-
-Let's consider that line above:
-
-    # many.levels.deep.nested.stuff.servers
-
-Sections may have prefixes. If they do, they're moved to the corresponding subsection. The prefix is appended to whatever context they're written in.
-
-This way, data doesn't become deeply nested, and sections of data can be moved without making many changes.
-
-
-### arrays
-
-Arrays can be expressed in 2 ways. One way is enclosing them in [ ] brackets:
-
-	## some_arrays
-    mine = ["one", "two", "three"]
-    theirs = [,"milk" ,"eggs" ,"sugar"]
+    🡺 
     
-Inside [ ] brackets, leading commas are optional.
+    "root_item": [
+      "nested",
+      [
+        "bracket",
+        [
+          "array"
+        ]
+      ]
+    ],
+    
+We can use key-value pairs, and data in nested brackets.
 
-If an array isn't nested inside its subsection, the [ ] brackets can be omitted, IF there's a leading comma and 1 item per line. For compability with Markdown, ' - ' can be used instead of ' , ' in that case.
+### section headers
 
-	## some_arrays
+    # alpha
+    "a"
+    
+    # beta
+    true
+    [false, null]
+    
+    🡺 
+    
+    "alpha": "a",
+    "beta": [
+      true,
+      [
+        false,
+        null
+      ]
+    ],
 
-    ### mine
-	, "one"
-	, "two"
-	, "three"
+We can put one or more items under # headers. If there are multiple items, they're put into an array. (The other ways to define arrays are preferred, because they're clearer and can mix in key-value pairs with data.)
 
-    ### theirs
-    - "milk"
-    - "eggs"
-    - "sugar"
+Like in JSON, data can be a string, a float, true, false, or null.
 
-When both commas and dashes are mixed, the comma segments are considered sub-arrays of a dash array. Indentation is recommended. For example:
+### nesting in existing items
 
-	- "one"
-       , "two"
-       , "three"
-	- "four"
-	   , "five"
-	   , "six"
+    # gamma
+    g = "is for gamma"
+    
+    # gamma.deeply.nested.items
+    multi_line_string = "this...
+    is...
+    nested."
+      
+    🡺 
+    
+    "gamma": {
+      "g": "is for gamma",
+      "deeply": {
+        "nested": {
+          "items": {
+            "multi_line_string": "this...\nis...\nnested."
+          }
+        }
+      }
+    },
 
-is equivalent to
+We can define a section, then later put data inside it that's deeply nested, as above. Header names are split by " **.** ".
 
-	- ["one", "two", "three"]
-	- ["four", "five", "six"]
+### appending to arrays
+
+    # epsilon
+    
+    ## array.[]
+    a = "building"
+    b = "an"
+    
+    ## array.[]
+    c = "array"
+    d = "up"
+          
+    🡺 
+
+    "epsilon": {
+      "array": [
+        {
+          "a": "building",
+          "b": "an"
+        },
+        {
+          "c": "array",
+          "d": "up"
+        }
+      ]
+    },
+
+When a section is labeled **foo.[]** as above, its contents are appended to an array in **foo**.
+
+### comment blocks
+
+    #/ comment block
+    
+    ## Text here is ignored.
+    Until hitting a lower-level header.
+
+Adding **/** to the end of a **#** header makes that section and all its subsections a comment block.
+
+### nested arrays and array insertion
+
+    # zeta
+    // This is a comment.
+    // Commas produce nested values.
+    - 0
+    - 1
+    - 2
+      , 2.2
+    - 3
+      , 3.3
+    
+    # zeta.0
+    "replaced zero in zeta"
+              
+    🡺 
+    
+    "zeta": [
+      "replaced zero in zeta",
+      1,
+      [
+        2,
+        2.2
+      ],
+      [
+        3,
+        3.3
+      ]
+    ],
+
+A line starting with **//** is a single-line comment.
+
+Dashes produce arrays. Using commas after dashes produces nested sub-arrays.
+
+In Javascript, strings of numbers are converted to numeric array indices when used as keys. So, we can insert data in arrays defined above.
+
+### dittos, templates, and code blocks
+
+    # people
+    ##/ templates are not output
+    ##' employee_template
+    role = "employee"
+    
+    // ditto copies above
+    ##' bob
+    status = "active"
+    
+    ##' joe
+    
+    ##; code
+    console.log("Send a message in a bottle.");
+    return `Bob's role is ${this.bob.role}.`;
+    
+    #' people_copy
+
+    🡺
+
+    "people": {
+      "bob": {
+        "role": "employee",
+        "status": "active"
+      },
+      "joe": {
+        "role": "employee"
+      },
+      "code": "Bob's role is employee."
+    },
+    "people_copy": {
+      "bob": {
+        "role": "employee",
+        "status": "active"
+      },
+      "joe": {
+        "role": "employee"
+      },
+      "code": "Bob's role is employee."
+    }
+
+Using **##'** makes a section a template (if it's a first subsection) or a ditto (otherwise). A template is not output. A ditto copies the most recent non-ditto section, and can have additional data added.
+
+Ditto sections can produce exponential amounts of data, so they're only allowed if **trust ≥ 1**.
+
+Using **##;** makes a section a code block. Code blocks are only executed if **trust ≥ 2**.
+
+Code blocks can access their parent section as **this** and if **trust ≥ 3** they can access the root object as **root**.
+
+The above code block also executes a **console.log** twice, because it's copied by the ditto. Because of execution order, logging object data can sometimes fail.
 
 
-#### array element names
+## future plans
 
-Inside an array, an element that starts with a ' . ' is an element name. Later, that name can be used to place data there.
+### schemas
 
-Example:
+#### architecture
 
-	### foo
-    - .bar1
-    - .bar2
+MON is also meant to handle schemas for data in it. There are already several perfectly good languages for schemas, such as CUE, Dhall, and XSD, but which one to use? I decided to go with whatever has the most stars on Github, and found this thing called TypeScript with 100k stars. So, the plan is:
 
-    ### foo.bar2
-    // Data here goes in the above array element bar2.
+1. read MON files
+2. compile them to TypeScript for type validation
+3. compile the TypeScript to safe JS
+4. execute the JS to run any schema (checks + generation) of values and produce a JS object
+5. if necessary, convert the JS object to a JSON string
 
 
-### data types
+#### design
 
 > According to the JSON standard, a JSON value is one of the following JSON-language data types: object, array, number, string, Boolean (true or false), or null.
 
 Programming generally involves more data types than that, and it's useful to be able to specify your own types for data. Let's allow description of types, using the same format as TypeScript except for the "comment" type.
 
-#### example of using types
-
-	# servers : serverset
-
-	## alpha : server
-	ip = "10.0.0.1"
-	role = "frontend"
-
-	## beta : server
-	ip = "10.0.0.2"
-	role = "backend"
-
-	# some_array : int[]
-	, 12
-	, 34
-	, 56
-
-
-#### comments
-
-	// this is a single-line comment
-    
-	##/ this is a comment block
-    This whole subsection is just a comment. The comment continues until a section header of the same or lower level.
-
-The creator of JSON deliberately didn't include comments, but I think JSON5 adding comments shows that was a mistake.
-
-
-## MON schemas
 
 We also need some way to specify what new types mean.
 
@@ -309,11 +353,11 @@ Of course, Typescript doesn't have an **int** type, so if using that is allowed,
 Or, users could write that check directly, to simplify the parsing problem and reduce special cases.
 
 
-### schema scoping
+#### schema scoping
 
 Type definitions that are inside a section only apply to that section and its sub-sections.
 
-#### combined schema + data example
+##### combined schema + data example
 
 	# servers : serverset
     
@@ -335,7 +379,7 @@ Type definitions that are inside a section only apply to that section and its su
 **extra_field** isn't allowed because **server** is a closed set, so the above gives an error.
 
 
-### schema safety
+#### schema safety
 
 Schemas should only allow a subset of Typescript code:
 
@@ -348,11 +392,14 @@ That prevents most harmful effects, but could still allow for malicious schemas 
 * a safe mode for potentially-malicious data, with fewer features
 
 
-## file handling
+### file handling
 
 To process a folder of MON files using another MON file as a schema, the code would be something like:
 
-    MON.load([schema_path, [data_directory, {type: "type_in_schema", trusted: false}]])
+    MON.load([
+      [schema_path, {trust: 0}],
+      [data_directory, {type: "type_in_schema", trust: 0}]
+    ])
 
 The type of that would be something like:
 
@@ -373,7 +420,7 @@ File data can go inside an object with that filename. If we want a file with dat
 * base/more/nesting.mon
 
 
-## logo / 紋章
+### logo / 紋章
 
 Since the name is MON, maybe it could use a logo like [this](https://en.wikipedia.org/wiki/File:Family_crest_hanawachigai.png).
 
