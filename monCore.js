@@ -201,79 +201,83 @@ function parseItem(sectionText) {
   return {};
 }
 
-const NodeType = {
-  NORMAL: 'NORMAL',
-  COMMENT: 'COMMENT',
-  TEXT: 'TEXT',
-  TEMPLATE: 'TEMPLATE',
-  CODE: 'CODE',
-};
-
-function parseSection(node, trust, root = null) {
+function parseSection(node, trust, root = null, tags = [], tagCode = {}) {
   let obj = {};
   
-  switch (node.nodeType) {
-  case NodeType.COMMENT:
-  case NodeType.CODE:
-    return null;
-  
-  case NodeType.TEXT:
-    return node.content.join('\n');
-    break;
-  
-  default:
-    try {
-      if (node.content.length) {
-        obj = parseItem(node.content.join('\n'));
-      }
-    } catch (err) {
-      throw new Error(`\nParser error in section "${node.name}":\n${err.message}`)
+  if (node.nodeType != 'TAG') try {
+    if (node.content.length) {
+      obj = parseItem(node.content.join('\n'));
     }
-    break;
+  } catch (err) {
+    throw new Error(`\nParser error in section "${node.name}":\n${err.message}`)
   }
   
-  let childData = {};
+  let childData = null;
   for (const child of node.children) {
+    let [cname, ctags] = child.name.split(' : ');
+    ctags = ctags ? ctags.trim().split(/\s+/) : [];
+    cname = cname.trim();
+    
     switch (child.nodeType) {
-    
-    case NodeType.TEMPLATE:
+    case 'COMMENT':
+    case 'TEMPLATE':
       continue;
-    
-    case NodeType.CODE:
-      if (trust >= 2) {
-        const code = child.content.join('\n');
-        try {
-          const fn = new Function(trust >= 3 ? 'root' : '', code);
-          const result = fn.call(obj, trust >= 3 ? root : undefined);
-          if (result !== undefined) {
-            childData = result;
-          }
-        } catch (error) {
-          console.error('Error executing code block:', error);
-        }
-      } else {
-        console.log('Code block skipped due to trust level.');
+
+    case 'TEXT':
+      childData = child.content.join('\n');
+      break;
+
+    case 'CODE': {
+      if (trust < 2) {
+        console.log(`Code block in section "${cname}" skipped due to trust level.`);
+        break;
+      }
+
+      const code = child.content.join('\n');
+      try {
+        const fn = new Function(trust >= 3 ? 'root' : '', code);
+        const result = fn.call(obj, trust >= 3 ? root : undefined);
+        childData = result;
+      } catch (error) {
+        console.error(`Error executing code in section "${cname}":`, error);
       }
       break;
+    }
     
-    case NodeType.NORMAL:
+    case 'TAG': {
+      if (trust < 3) {
+        console.log(`Tag block in section "${cname}" skipped due to trust level.`);
+        break;
+      }
+      let fn = null;
+      const code = child.content.join('\n');
+      try {
+        fn = new Function('root', code);
+      } catch (error) {
+        console.error(`Error parsing code in section "${cname}":`, error);
+      }
+      if (fn) { tagCode[cname] = fn; }
+      parseSection(child, trust, root || obj, ctags, tagCode);
+      continue;
+    }
+    
+    case 'NORMAL':
     default:
-      childData = parseSection(child, trust, root || obj);
+      childData = parseSection(child, trust, root || obj, ctags, tagCode);
       break;
     }
 
-    let destination = obj;
-    const prefixes = child.name.split('.');
-    for (let i = 0; i < prefixes.length - 1; i++) {
-      const prefix = (prefixes[i] === "[]") ? destination.length : prefixes[i];
-      if (!destination[prefix]) {
-        destination[prefix] = (prefixes[i + 1] === "[]") ? [] : {};
+    if (childData) {      
+      let destination = obj;
+      const prefixes = cname.split('.');
+      for (let i = 0; i < prefixes.length - 1; i++) {
+        const prefix = (prefixes[i] === "[]") ? destination.length : prefixes[i];
+        if (!destination[prefix]) {
+          destination[prefix] = (prefixes[i + 1] === "[]") ? [] : {};
+        }
+        destination = destination[prefix];
       }
-      destination = destination[prefix];
-    }
-    
-    if (childData) {
-      const last_i = prefixes.length - 1;
+      
       if (prefixes.length > 0) {
         let prefix = prefixes[prefixes.length - 1];
         prefix = (prefix === "[]") ? destination.length : prefix;
@@ -282,6 +286,11 @@ function parseSection(node, trust, root = null) {
         obj = childData;
       }
     }
+  }
+  
+  for (let tag of tags) {
+    let fn = tagCode[tag];
+    if (fn) { fn.call(obj, root); }
   }
 
   return obj;
@@ -323,18 +332,20 @@ export function parseMON(text, trust = 1) {
         continue;
       }
       
-      let nodeType = NodeType.NORMAL;
+      let nodeType = 'NORMAL';
       let isComment = false;
       let isDitto = false;
       let isTemplate = false;
       let isCode = false;
+      let isTag = false;
       textLevel = 0;
       
       switch (line[level]) {
-      case '/': isComment = true; nodeType = NodeType.COMMENT; break;
-      case '"': textLevel = level; nodeType = NodeType.TEXT; break;
+      case '/': isComment = true; nodeType = 'COMMENT'; break;
+      case '"': textLevel = level; nodeType = 'TEXT'; break;
       case '=': isDitto = true; break;
-      case ';': isCode = true; nodeType = NodeType.CODE; break;
+      case ';': isCode = true; nodeType = 'CODE'; break;
+      case ':': isTag = true; nodeType = 'TAG'; break;
       }
 
       if (isComment) {
@@ -350,10 +361,10 @@ export function parseMON(text, trust = 1) {
       if (isDitto && current.children.length === 0) {
         isDitto = false;
         isTemplate = true;
-        nodeType = NodeType.TEMPLATE;
+        nodeType = 'TEMPLATE';
       }
       
-      let headerLength = isDitto || (nodeType != NodeType.NORMAL) ? level + 1 : level;
+      let headerLength = isDitto || (nodeType != 'NORMAL') ? level + 1 : level;
       let name = line.slice(headerLength).trim();
       const node = { level, name, content: [], children: [], nodeType };
       if (isDitto && trust > 0 && lastValidNodes[level]) {
@@ -366,7 +377,7 @@ export function parseMON(text, trust = 1) {
       current = node;
 
       if (!isDitto
-          && (nodeType === NodeType.NORMAL || nodeType === NodeType.TEMPLATE)) {
+          && (nodeType === 'NORMAL' || nodeType === 'TEMPLATE')) {
         lastValidNodes[level] = node;
       }
       break;
