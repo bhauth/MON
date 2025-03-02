@@ -70,13 +70,23 @@ return `Bob's status is ${this.bob.status}.`;
 
 #= people_copy
 
-#: tags
+#: some_tags
 
-##: tag1
+##: squared
 this.x2 = this.x ** 2;
 
-##: tag2
+##: cubed
 this.x3 = this.x ** 3;
 
-# tagged stuff : tag1 tag2
+# numbers
+
+## square_me : squared
 x = 10
+
+#: funNumbers
+## cube_me : cubed
+
+# more_numbers : funNumbers
+
+## cube_me
+x = 2

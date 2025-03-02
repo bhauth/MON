@@ -102,7 +102,6 @@ class MONParser extends CstParser {
 
 const parser = new MONParser();
 
-
 function extractQuotedIdentifier(node) {
   return node.children.QuotedIdentifier[0].image.slice(1, -1);
 }
@@ -201,10 +200,11 @@ function parseItem(sectionText) {
   return {};
 }
 
-function parseSection(node, trust, root = null, tags = [], tagCode = {}) {
+function parseSection(node, trust, root = null,
+    tags = [], tagCode = {}, subTags = {}, inTag = false) {
   let obj = {};
   
-  if (node.nodeType != 'TAG') try {
+  if (!inTag) try {
     if (node.content.length) {
       obj = parseItem(node.content.join('\n'));
     }
@@ -217,6 +217,13 @@ function parseSection(node, trust, root = null, tags = [], tagCode = {}) {
     let [cname, ctags] = child.name.split(' : ');
     ctags = ctags ? ctags.trim().split(/\s+/) : [];
     cname = cname.trim();
+    
+    if (!inTag) {
+      for (let tag of tags) {
+        let sts = subTags[tag][cname];
+        if (sts) { ctags = ctags.concat(sts); }
+      }
+    }
     
     switch (child.nodeType) {
     case 'COMMENT':
@@ -257,13 +264,19 @@ function parseSection(node, trust, root = null, tags = [], tagCode = {}) {
         console.error(`Error parsing code in section "${cname}":`, error);
       }
       if (fn) { tagCode[cname] = fn; }
-      parseSection(child, trust, root || obj, ctags, tagCode);
+      parseSection(child, trust, root || obj, ctags, tagCode, subTags, true);
       continue;
     }
     
     case 'NORMAL':
     default:
-      childData = parseSection(child, trust, root || obj, ctags, tagCode);
+      if (inTag) {
+        if (!subTags[node.name]) { subTags[node.name] = []; };
+        let parent = subTags[node.name];
+        if (!parent[cname]) { parent[cname] = []; }
+        parent[cname] = parent[cname].concat(ctags);
+      }
+      childData = parseSection(child, trust, root || obj, ctags, tagCode, subTags, inTag);
       break;
     }
 
