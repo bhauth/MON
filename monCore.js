@@ -335,17 +335,14 @@ export function parseMON(text, trust = 1) {
       let nodeType = 'NORMAL';
       let isComment = false;
       let isDitto = false;
-      let isTemplate = false;
-      let isCode = false;
-      let isTag = false;
       textLevel = 0;
       
       switch (line[level]) {
       case '/': isComment = true; nodeType = 'COMMENT'; break;
       case '"': textLevel = level; nodeType = 'TEXT'; break;
       case '=': isDitto = true; break;
-      case ';': isCode = true; nodeType = 'CODE'; break;
-      case ':': isTag = true; nodeType = 'TAG'; break;
+      case ';': nodeType = 'CODE'; break;
+      case ':': nodeType = 'TAG'; break;
       }
 
       if (isComment) {
@@ -360,7 +357,6 @@ export function parseMON(text, trust = 1) {
       
       if (isDitto && current.children.length === 0) {
         isDitto = false;
-        isTemplate = true;
         nodeType = 'TEMPLATE';
       }
       
