@@ -53,11 +53,6 @@ Until hitting a lower-level header.
 # zeta.0
 "replaced zero in zeta"
 
-#: tags
-
-##: my_tag
-this.tag_code = `Bob's role is ${this.bob.role}.`;
-
 # people
 ##/ templates are not output
 ##= employee_template
@@ -73,4 +68,15 @@ status = "active"
 console.log("Send a message in a bottle.");
 return `Bob's status is ${this.bob.status}.`;
 
-#= people_copy : my_tag
+#= people_copy
+
+#: tags
+
+##: tag1
+this.x2 = this.x ** 2;
+
+##: tag2
+this.x3 = this.x ** 3;
+
+# tagged stuff : tag1 tag2
+x = 10
