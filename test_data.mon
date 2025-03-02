@@ -84,9 +84,26 @@ this.x3 = this.x ** 3;
 x = 10
 
 #: funNumbers
-## cube_me : cubed
+## cubes.[] : cubed
+## squares : myType
+### * : squared
 
 # more_numbers : funNumbers
 
-## cube_me
-x = 2
+## cubes
+- x = 1
+- x = 2
+
+## cubes.[]
+x = 3
+## cubes.[]
+x = 4
+
+## squares
+### s1
+x = 5
+### s2
+x = 6
+
+
+

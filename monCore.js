@@ -220,8 +220,10 @@ function parseSection(node, trust, root = null,
     
     if (!inTag) {
       for (let tag of tags) {
-        let sts = subTags[tag][cname];
-        if (sts) { ctags = ctags.concat(sts); }
+        let sts = subTags[tag];
+        if (sts && sts[cname]) { ctags = ctags.concat(sts[cname]); }
+        sts = subTags[tag];
+        if (sts && sts[' ']) { ctags = ctags.concat(sts[' ']); }
       }
     }
     
@@ -237,7 +239,7 @@ function parseSection(node, trust, root = null,
     case 'CODE': {
       if (trust < 2) {
         console.log(`Code block in section "${cname}" skipped due to trust level.`);
-        break;
+        continue;
       }
 
       const code = child.content.join('\n');
@@ -254,7 +256,7 @@ function parseSection(node, trust, root = null,
     case 'TAG': {
       if (trust < 3) {
         console.log(`Tag block in section "${cname}" skipped due to trust level.`);
-        break;
+        continue;
       }
       let fn = null;
       const code = child.content.join('\n');
@@ -271,18 +273,33 @@ function parseSection(node, trust, root = null,
     case 'NORMAL':
     default:
       if (inTag) {
-        if (!subTags[node.name]) { subTags[node.name] = []; };
-        let parent = subTags[node.name];
-        if (!parent[cname]) { parent[cname] = []; }
-        parent[cname] = parent[cname].concat(ctags);
+        let [pname, ptags] = node.name.split(' : ');
+        let pLabel = (node.nodeType === "TAG") ? pname : ptags;
+        if (!subTags[pLabel]) { subTags[pLabel] = []; };
+        let parent = subTags[pLabel];
+        let cLabel = cname;
+        if (cLabel === '*') { cLabel = ' '; }
+        if (!parent[cLabel]) { parent[cLabel] = []; }
+        parent[cLabel] = parent[cLabel].concat(ctags);
+        if (cLabel.endsWith(".[]")) {
+          const arrayTags = ctags.map(tag => " " + tag);
+          let sliced = cLabel.slice(0,-3);
+          if (sliced === '*') { sliced = ' '; }
+          if (!parent[sliced]) { parent[sliced] = []; }
+          parent[sliced] = parent[sliced].concat(arrayTags);
+        }
       }
       childData = parseSection(child, trust, root || obj, ctags, tagCode, subTags, inTag);
       break;
     }
 
-    if (childData) {      
+    if (childData && !inTag) {
       let destination = obj;
-      const prefixes = cname.split('.');
+      let prefixes = cname.split('.');
+      if (trust < 0) {
+        if (prefixes.length === 2 && prefixes[1] === '[]') {}
+        else { prefixes = cname ? [cname] : []; }
+      }
       for (let i = 0; i < prefixes.length - 1; i++) {
         const prefix = (prefixes[i] === "[]") ? destination.length : prefixes[i];
         if (!destination[prefix]) {
@@ -302,8 +319,21 @@ function parseSection(node, trust, root = null,
   }
   
   for (let tag of tags) {
+    let arrayTag = false;
+    if (tag[0] === ' ') {
+      tag = tag.slice(1);
+      arrayTag = true;
+    }
     let fn = tagCode[tag];
-    if (fn) { fn.call(obj, root); }
+    if (!fn) { continue; }
+    if (arrayTag && !node.name.endsWith(".[]")) {
+      if (Array.isArray(obj)) {
+        for (let o of obj) {
+          fn.call(o, root);
+        }
+      }
+    }
+    else { fn.call(obj, root); }
   }
 
   return obj;
