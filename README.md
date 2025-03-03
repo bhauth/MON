@@ -114,23 +114,6 @@ We can use key-value pairs, and data in nested brackets.
 
 Keys may be quoted with single quotes. Strings must be quoted with double quotes.
 
-### text blocks
-
-    #" Text Block
-    You can freely use
-    symbols like " and = in this text.
-    
-    ## nested text
-    can go in these too.
-
-        🡺
-    
-    "Text Block": "You can freely use\nsymbols like \" and = in this text.\n# nested text\ncan go in these too.",
-
-
-Adding **"** to the end of a **#** header makes that section and all its subsections a text block. Subsection headers are trimmed by the starting level.
-
-
 ### section headers
 
     # alpha
@@ -157,6 +140,30 @@ Like in JSON, values can be a string, a float, true, false, or null.
 
 Subsections are added to their parent section as keys, so only sections that are empty or have key-value pairs may have subsections.
 
+### text blocks
+
+    #" Text Block
+    You can freely use
+    symbols like " and = in this text.
+    
+    ## nested text
+    can go in these too.
+
+        🡺
+    
+    "Text Block": "You can freely use\nsymbols like \" and = in this text.\n# nested text\ncan go in these too.",
+
+Adding **"** to the end of a **#** header makes that section and all its subsections a text block. Subsection headers are trimmed by the starting level, to allow embedding arbitrary Markdown in them.
+
+### comment blocks
+
+    #/ comment block
+    
+    ## Text here is ignored.
+    Until hitting a lower-level header.
+
+Adding **/** to the end of a **#** header makes that section and all its subsections a comment block.
+
 ### nesting in existing items
 
     # gamma
@@ -181,6 +188,8 @@ Subsections are added to their parent section as keys, so only sections that are
     },
 
 We can define a section, then later put data inside it that's deeply nested, as above. Header names are split by " **.** ".
+
+Nesting with headers can potentially escape schemas, so it's only allowed if **trust ≥ 0**.
 
 ### appending to arrays
 
@@ -210,15 +219,6 @@ We can define a section, then later put data inside it that's deeply nested, as 
     },
 
 When a section is labeled **foo.[]** as above, its contents are appended to an array in **foo**.
-
-### comment blocks
-
-    #/ comment block
-    
-    ## Text here is ignored.
-    Until hitting a lower-level header.
-
-Adding **/** to the end of a **#** header makes that section and all its subsections a comment block.
 
 ### nested arrays and array insertion
 
@@ -256,7 +256,7 @@ Dashes produce arrays. Using commas after dashes produces nested sub-arrays.
 
 In Javascript, strings of numbers are converted to numeric array indices when used as keys. So, we can insert data in arrays defined above.
 
-### dittos, templates, and code blocks
+### dittos and templates
 
     # people
     ##/ templates are not output
@@ -269,10 +269,6 @@ In Javascript, strings of numbers are converted to numeric array indices when us
     
     ##= joe
     
-    ##; code
-    console.log("Send a message in a bottle.");
-    return `Bob's role is ${this.bob.role}.`;
-    
     #= people_copy
 
     🡺
@@ -284,8 +280,7 @@ In Javascript, strings of numbers are converted to numeric array indices when us
       },
       "joe": {
         "role": "employee"
-      },
-      "code": "Bob's role is employee."
+      }
     },
     "people_copy": {
       "bob": {
@@ -294,131 +289,154 @@ In Javascript, strings of numbers are converted to numeric array indices when us
       },
       "joe": {
         "role": "employee"
-      },
-      "code": "Bob's role is employee."
-    }
+      }
+    },
 
-Using **##=** makes a section a template (if it's a first subsection) or a ditto (otherwise). A template is not output. A ditto copies the most recent non-ditto section, and can have additional data added.
+Using **##=** makes a section a template (if it's a first subsection) or a ditto (otherwise). A template is not output. A ditto copies the most recent non-ditto section, and can have extra data added.
 
 Ditto sections can produce exponential amounts of data, so they're only allowed if **trust ≥ 1**.
+
+### code blocks
+
+    # code blocks
+    
+    ##; logging
+    console.log("Send a message in a bottle.");
+    
+    ## x
+    10
+    
+    ##; 2x
+    return this.x * 2;
+    
+    ##; using root
+    return `Bob's status is ${root.people.bob.status}.`;
+
+    🡺
+
+    "code blocks": {
+      "x": 10,
+      "2x": 20,
+      "using root": "Bob's status is active."
+    },
 
 Using **##;** makes a section a code block. Code blocks are only executed if **trust ≥ 2**.
 
 Code blocks can access their parent section as **this** and if **trust ≥ 3** they can access the root object as **root**.
 
-The above code block also executes a **console.log** twice, because it's copied by the ditto. Because of execution order, logging object data can sometimes fail.
+The above code block also executes a **console.log**. If it was copied by a ditto, the message would be printed twice.
+
+### tags
+
+Suppose you want to apply some code to multiple blocks, based on their type. We can do that with tags. A tag block is marked with **##: tag_name** and code in it is applied to every section with that tag. Sections can have multiple tags. Tag names are global. Tags must use " **:** " with spaces.
+
+    #: some_tags
+    
+    ##: squared
+    this.x2 = this.x ** 2;
+    
+    ##: cubed
+    this.x3 = this.x ** 3;
+    
+    # numbers
+    
+    ## square_me : squared
+    x = 10
+    
+    🡺
+
+    "numbers": {
+      "square_me": {
+        "x": 10,
+        "x2": 100
+      }
+    },
+
+Here, the code in **squared** is applied to every block with the type **squared**.
+
+### subtags
+
+Suppose we want to automatically apply tags to subsections, based on their parent section's type and the subsection names. We can do that with subtags.
+
+    #: funNumbers
+    ## squares : myType
+    ### * : squared
+    ## cubes.[] : cubed
+    
+    # squared_numbers : funNumbers
+    
+    ## squares
+    ### s1
+    x = 6
+    ### s2
+    
+    🡺
+
+    "squared_numbers": {
+      "squares": {
+        "s1": {
+          "x": 6,
+          "x2": 36
+        },
+        "s2": {
+          "x": 5,
+          "x2": 25
+        }
+      }
+    },
+
+Let's go through what that means.
+
+    #: funNumbers
+    ## squares : myType
+
+In sections tagged **funNumbers**, if there's a subsection named **squares**, apply tag **myType** to it.
+
+    ## squares : myType
+    ### * : squared
+
+In sections tagged **myType**, if there's **any subsection** (" **\*** " matches any section name), apply tag **squared** to it.
+
+### array subtags
+
+If we want to apply a tag to every element of an array, we can do that by adding " **.[]** " to the section name. To match any array subsection, we can use " **\*.[]** ".
+
+    # cubed_numbers : funNumbers
+    
+    ## cubes
+    - x = 4
+    - x = 3
+    
+    ## cubes.[]
+    x = 2
+    ## cubes.[]
+    x = 1
+    
+    🡺
+
+    "cubed_numbers": {
+      "cubes": [
+        {
+          "x": 4,
+          "x3": 64
+        },
+        {
+          "x": 3,
+          "x3": 27
+        },
+        {
+          "x": 2,
+          "x3": 8
+        },
+        {
+          "x": 1,
+          "x3": 1
+        }
+      ]
+    }
 
 
 ## future plans
-
-### schemas
-
-#### architecture
-
-MON is also meant to handle schemas for data in it. There are already several perfectly good languages for schemas, such as CUE, Dhall, and XSD, but which one to use? I decided to go with whatever has the most stars on Github, and found this thing called TypeScript with 100k stars. So, the plan is:
-
-1. read MON files
-2. compile them to TypeScript for type validation
-3. compile the TypeScript to safe JS
-4. execute the JS to run any schema (checks + generation) of values and produce a JS object
-5. if necessary, convert the JS object to a JSON string
-
-
-#### design
-
-> According to the JSON standard, a JSON value is one of the following JSON-language data types: object, array, number, string, Boolean (true or false), or null.
-
-Programming generally involves more data types than that, and it's useful to be able to specify your own types for data. Let's allow description of types, using the same format as TypeScript except for the "comment" type.
-
-
-We also need some way to specify what new types mean.
-
-* Type definitions use $ instead of #, chosen as a stylized S for "Schema".
-* Let's prefix required fields with ! and have other fields be optional by default.
-
-**simple example**
-
-	$ closed_dict =   // using = indicates a closed set
-    alpha : string    // Optional. Must be a string if present.
-    ! beta : int     // Must be present, and must be an int.
-    gamma = "a_default"  // gamma is set to "a_default" by default
-
-    // The value of delta is set to this expression by default. It will be evaluated as javascript during processing if not overwritten
-    delta = beta * beta
-    
-    $ open_dict :   // using : indicates an open set
-    beta : int    // Beta must be an int if present.
-    beta :: beta > 10   // If beta is present, (beta > 10) must be true.
-
-    // epsilon has a default value. Trying to overwrite it with a different value is an error.
-    ! epsilon = "forced_default"
-
-    $ unlimited_float_pairs :
-    // any number of unspecified field names of type Record<string,float_pair>
-    [float_pair] : [float, float]
-    
-
-In the above example:
-
-* **closed_dict** uses ' = ' so it's a closed set: elements of that type can't have additional fields.
-* **open_dict** uses ' : ' so it's allowed to have additional (unspecified) fields.
-
-As for the symbols:
-
-- **name : type**  indicates a type which **name** must have if present.
-- **! name : type**  indicates a type and makes adding the field mandatory.
-- **name = expression**  sets a default value.
-- **! name = expression**  sets a default value and can't be overwritten. Trying to overwrite with the same value is allowed, to allow for merging defaults.
-- **name :: expression**  means that, if **name** is present, the expression must evaluate to true.
-- **:: expression**  means that **expression** must always evaluate to true.
-- **\[\] :** means any number of unspecified named fields of the following type may be present. If mandatory, at least 1 must be present.
-- **\[type_name\] :**  is like  **\[\] :**  but also defines a new name for the specified type.
-
-Of course, Typescript doesn't have an **int** type, so if using that is allowed, it would need to be converted to:
-
-    beta :: Number.isInteger(beta)
-
-Or, users could write that check directly, to simplify the parsing problem and reduce special cases.
-
-
-#### schema scoping
-
-Type definitions that are inside a section only apply to that section and its sub-sections.
-
-##### combined schema + data example
-
-	# servers : serverset
-    
-    $ serverset : 
-    
-    $$ [server] =
-    ! ip : string
-    role : string
-
-    ## alpha : server
-	ip = "10.0.0.1"
-	role = "frontend"
-    extra_field = 99;
-
-	## beta : server
-	ip = "10.0.0.2"
-	role = "backend"
-
-**extra_field** isn't allowed because **server** is a closed set, so the above gives an error.
-
-
-#### schema safety
-
-Schemas should only allow a subset of Typescript code:
-
-* no functions with side effects
-* no recursion
-
-That prevents most harmful effects, but could still allow for malicious schemas that use exponential space or time. So, it might make sense to have 2 modes for processing schemas:
-
-* a normal mode for non-malicious data
-* a safe mode for potentially-malicious data, with fewer features
-
 
 ### file handling
 

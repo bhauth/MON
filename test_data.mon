@@ -3,6 +3,13 @@ root_item = ["nested", ["bracket", ["array"]]]
 
 'single quotes' = "allow for spaces in keys"
 
+# alpha
+"A"
+
+# beta
+bools = [true, false]
+'null' = null
+
 #" Text Block
 You can freely use
 symbols like " and = in this text.
@@ -10,12 +17,10 @@ symbols like " and = in this text.
 ## nested text
 can go in these too.
 
-# alpha
-"A"
+#/ comment block
 
-# beta
-bools = [true, false]
-'null' = null
+## Text here is ignored.
+Until hitting a lower-level header.
 
 # gamma
 g = "is for gamma"
@@ -34,11 +39,6 @@ b = "an"
 ## array.[]
 c = "array"
 d = "up"
-
-#/ comment block
-
-## Text here is ignored.
-Until hitting a lower-level header.
 
 # zeta
 // This is a comment.
@@ -64,11 +64,21 @@ status = "active"
 
 ##= joe
 
-##; code
-console.log("Send a message in a bottle.");
-return `Bob's status is ${this.bob.status}.`;
-
 #= people_copy
+
+# code blocks
+
+##; logging
+console.log("Send a message in a bottle.");
+
+## x
+10
+
+##; 2x
+return this.x * 2;
+
+##; using root
+console.log (`Bob's status is ${root.people.bob.status}.`);
 
 #: some_tags
 
@@ -84,26 +94,26 @@ this.x3 = this.x ** 3;
 x = 10
 
 #: funNumbers
-## cubes.[] : cubed
 ## squares : myType
 ### * : squared
+## cubes.[] : cubed
 
-# more_numbers : funNumbers
-
-## cubes
-- x = 1
-- x = 2
-
-## cubes.[]
-x = 3
-## cubes.[]
-x = 4
+# squared_numbers : funNumbers
 
 ## squares
 ### s1
-x = 5
-### s2
 x = 6
+### s2
+x = 5
 
+# cubed_numbers : funNumbers
 
+## cubes
+- x = 4
+- x = 3
+
+## cubes.[]
+x = 2
+## cubes.[]
+x = 1
 
