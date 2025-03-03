@@ -222,7 +222,6 @@ function parseSection(node, trust, root = null,
       for (let tag of tags) {
         let sts = subTags[tag];
         if (sts && sts[cname]) { ctags = ctags.concat(sts[cname]); }
-        sts = subTags[tag];
         if (sts && sts[' ']) { ctags = ctags.concat(sts[' ']); }
       }
     }
