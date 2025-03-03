@@ -436,6 +436,17 @@ If we want to apply a tag to every element of an array, we can do that by adding
     }
 
 
+## trust levels
+
+**trust** is a parsing function parameter. Trust levels are defined by what input data must not be allowed to do, as follows:
+
+* 3 : (no restrictions)
+* 2 : access data outside itself
+* 1 : run javascript code
+* 0 : cause excessive memory or time usage
+* -1 : avoid schemas being applied
+
+
 ## future plans
 
 ### file handling
