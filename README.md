@@ -369,6 +369,7 @@ Suppose we want to automatically apply tags to subsections, based on their paren
     ### s1
     x = 6
     ### s2
+    x = 5
     
     🡺
 

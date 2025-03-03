@@ -78,7 +78,7 @@ console.log("Send a message in a bottle.");
 return this.x * 2;
 
 ##; using root
-console.log (`Bob's status is ${root.people.bob.status}.`);
+return `Bob's status is ${root.people.bob.status}.`;
 
 #: some_tags
 
