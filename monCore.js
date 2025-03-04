@@ -300,16 +300,19 @@ function parseSection(node, trust, root = null,
         else { prefixes = cname ? [cname] : []; }
       }
       for (let i = 0; i < prefixes.length - 1; i++) {
-        const prefix = (prefixes[i] === "[]") ? destination.length : prefixes[i];
-        if (!destination[prefix]) {
-          destination[prefix] = (prefixes[i + 1] === "[]") ? [] : {};
+        let prefix = prefixes[i];
+        if (prefixes[i] === "[]") { prefix = destination.length; }
+        
+        if (!destination[prefix]) { destination[prefix] = {}; }
+        if ((prefixes[i + 1] === "[]") && !Array.isArray(destination[prefix])) {
+          destination[prefix] = [];
         }
         destination = destination[prefix];
       }
       
       if (prefixes.length > 0) {
         let prefix = prefixes[prefixes.length - 1];
-        prefix = (prefix === "[]") ? destination.length : prefix;
+        if (prefix === "[]") { prefix = destination.length; }
         destination[prefix] = childData;
       } else {
         obj = childData;
@@ -357,7 +360,6 @@ export function parseMON(text, trust = 1) {
   // build hierarchy
   for (let line of lines) {
     line = line.trimStart();
-    if (!line) continue;
 
     if (commentLevel) {
       if (line.startsWith('#') && (countLeadingHashes(line) <= commentLevel)) {
