@@ -13,7 +13,9 @@ export function objToMon(json, options = { indentDepth: 2 }) {
 
 function sectionToMON(key, value, level, lines, indent) {
   const header = "#".repeat(level + 1);
-  const fmtKey = key.includes(" ") || key === "null" ? `'${key}'` : key;
+  let needQuote = key.includes(" ")
+    || key === "null" || key === "true" || key === "false";
+  const fmtKey = needQuote ? `'${key}'` : key;
   const isRoot = level === 0;
 
   if (typeof value === "string" && value.includes("\n")) {
