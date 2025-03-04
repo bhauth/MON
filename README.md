@@ -18,7 +18,7 @@ An initial implementation is available [here](https://github.com/bhauth/MON). Us
 - npm install
 - node monTool.js \[one or more files\]
 
-That generates .json files from the input files.
+That produces .json files from .mon ones, and .mon files from .json ones. Conversion of complex structures to .mon is currently limited.
 
 Note that Node takes hundreds of milliseconds to start up. Bun starts up ~2x as fast as Node, but either way you want to batch processing.
 
