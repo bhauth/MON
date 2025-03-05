@@ -44,14 +44,17 @@ d = "up"
 // This is a comment.
 // Commas produce nested values.
 - 0
-- 1
+- "put a 1 here"
 - 2
   , 2.2
 - 3
   , 3.3
 
 # zeta.0
-"replaced zero in zeta"
+"replaced zero"
+
+# zeta.[put a 1 here]
+"a 1"
 
 # people
 ##/ templates are not output
@@ -116,4 +119,3 @@ x = 5
 x = 2
 ## cubes.[]
 x = 1
-

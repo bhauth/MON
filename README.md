@@ -226,20 +226,23 @@ When a section is labeled **foo.[]** as above, its contents are appended to an a
     // This is a comment.
     // Commas produce nested values.
     - 0
-    - 1
+    - "put a 1 here"
     - 2
       , 2.2
     - 3
       , 3.3
     
     # zeta.0
-    "replaced zero in zeta"
-              
-    🡺 
+    "replaced zero"
     
+    # zeta.[put a 1 here]
+    "a 1"
+
+    🡺 
+
     "zeta": [
-      "replaced zero in zeta",
-      1,
+      "replaced zero",
+      "a 1",
       [
         2,
         2.2
@@ -254,7 +257,9 @@ A line starting with **//** is a single-line comment.
 
 Dashes produce arrays. Using commas after dashes produces nested sub-arrays.
 
-In Javascript, strings of numbers are converted to numeric array indices when used as keys. So, we can insert data in arrays defined above.
+In Javascript, strings of numbers are converted to numeric array indices when used as keys. So, we can insert data at an array index.
+
+Using  **# zeta.\[put a 1 here\]**  searches the array zeta for for the string in [ ] brackets, and replaces that item. This can be used to label array elements you'll later replace.
 
 ### dittos and templates
 

@@ -292,33 +292,46 @@ function parseSection(node, trust, root = null,
       break;
     }
 
-    if (childData && !inTag) {
-      let destination = obj;
-      let prefixes = cname.split('.');
-      if (trust < 0) {
-        if (prefixes.length === 2 && prefixes[1] === '[]') {}
-        else { prefixes = cname ? [cname] : []; }
-      }
-      for (let i = 0; i < prefixes.length - 1; i++) {
-        let prefix = prefixes[i];
-        if (prefixes[i] === "[]") { prefix = destination.length; }
-        
-        if (!destination[prefix]) { destination[prefix] = {}; }
-        if ((prefixes[i + 1] === "[]") && !Array.isArray(destination[prefix])) {
-          destination[prefix] = [];
-        }
-        destination = destination[prefix];
-      }
-      
-      if (prefixes.length > 0) {
-        let prefix = prefixes[prefixes.length - 1];
-        if (prefix === "[]") { prefix = destination.length; }
-        destination[prefix] = childData;
-      } else {
-        obj = childData;
-      }
+    if (!childData || inTag) { continue; }
+    let prefixes = cname.split('.');
+
+    if (trust < 0) {
+      if (prefixes.length === 2 && prefixes[1] === '[]') {}
+      else { prefixes = cname ? [cname] : []; }
     }
+    
+    if (!prefixes.length) {
+      obj = childData;
+      continue;
+    }
+    
+    const handlePrefix = (prefix, dest) => {
+      if (prefix === '[]') return dest.length;
+      if (prefix[0] === '[' && prefix.at(-1) === ']') {
+        if (!Array.isArray(dest)) throw new Error(`Non-array at "${cname}"`);
+        let key = prefix.slice(1, -1);
+        let i = dest.findIndex(item => item === key);
+        return i >= 0 ? i : dest.length;
+      }
+      return prefix;
+    };
+
+    let destination = obj;
+
+    for (let i = 0; i < prefixes.length - 1; i++) {
+      let prefix = handlePrefix(prefixes[i], destination);
+      if (!destination[prefix]) { destination[prefix] = {}; }
+      if ((prefixes[i + 1] === "[]") && !Array.isArray(destination[prefix])) {
+        destination[prefix] = [];
+      }
+      destination = destination[prefix];
+    }
+    
+    let last = prefixes[prefixes.length - 1];
+    destination[handlePrefix(last, destination)] = childData;
   }
+  
+  if (inTag) { return obj; }
   
   for (let tag of tags) {
     let arrayTag = false;
