@@ -200,7 +200,7 @@ function parseItem(sectionText) {
   return {};
 }
 
-function parseSection(node, trust, root = null,
+function parseSection(node, trust, root = null, groot = null,
     tags = [], tagCode = {}, subTags = {}, inTag = false) {
   let obj = {};
   
@@ -243,8 +243,8 @@ function parseSection(node, trust, root = null,
 
       const code = child.content.join('\n');
       try {
-        const fn = new Function(trust >= 3 ? 'root' : '', code);
-        const result = fn.call(obj, trust >= 3 ? root : undefined);
+        const fn = new Function('root', trust >= 3 ? 'groot' : '', code);
+        const result = fn.call(obj, root, trust >= 3 ? groot : undefined);
         childData = result;
       } catch (error) {
         console.error(`Error executing code in section "${cname}":`, error);
@@ -265,7 +265,7 @@ function parseSection(node, trust, root = null,
         console.error(`Error parsing code in section "${cname}":`, error);
       }
       if (fn) { tagCode[cname] = fn; }
-      parseSection(child, trust, root || obj, ctags, tagCode, subTags, true);
+      parseSection(child, trust, root || obj, groot, ctags, tagCode, subTags, true);
       continue;
     }
     
@@ -288,7 +288,7 @@ function parseSection(node, trust, root = null,
           parent[sliced] = parent[sliced].concat(arrayTags);
         }
       }
-      childData = parseSection(child, trust, root || obj, ctags, tagCode, subTags, inTag);
+      childData = parseSection(child, trust, root || obj, groot, ctags, tagCode, subTags, inTag);
       break;
     }
 
@@ -344,11 +344,11 @@ function parseSection(node, trust, root = null,
     if (arrayTag && !node.name.endsWith(".[]")) {
       if (Array.isArray(obj)) {
         for (let o of obj) {
-          fn.call(o, root);
+          fn.call(o, root, groot);
         }
       }
     }
-    else { fn.call(obj, root); }
+    else { fn.call(obj, root, groot); }
   }
 
   return obj;
@@ -360,8 +360,7 @@ function countLeadingHashes(line) {
   return count;
 }
 
-// main function
-export function parseMON(text, trust = 1) {
+export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {}, subTags = {}) {
   const lines = text.split('\n');
   let stack = [{ level: 0, name: '', content: [], children: [] }];
   let current = stack[0];
@@ -446,6 +445,6 @@ export function parseMON(text, trust = 1) {
     }
   }
 
-  return parseSection(stack[0], trust);
+  return parseSection(stack[0], trust, null, groot, tags, tagCode, subTags);
 }
 
