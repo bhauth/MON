@@ -1,3 +1,4 @@
 node_modules/
 dist/
+demo/monCore.bundle.js
 test_data.json

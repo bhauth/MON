@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "MON",
   "type": "module",
-  "main": "monConverter.js",
+  "main": "monTool.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -11,5 +11,11 @@
   "license": "CC-BY-SA",
   "dependencies": {
     "chevrotain": "^11.0.3"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "rollup": "^4.34.9",
+    "rollup-plugin-esbuild": "^6.2.1"
   }
 }

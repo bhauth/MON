@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MON demo</title>
+  <style>
+  body {
+    transition: all 0.3s;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0;
+  }
+
+  textarea {
+    width: 70%;
+    height: 40vh;
+    margin: 50px auto 20px auto;
+    display: block;
+    box-sizing: border-box;
+    padding: 10px;
+    font-size: 16px;
+  }
+
+  #output {
+    flex: 1; 
+    white-space: pre-wrap;
+    padding: 20px;
+  }
+  </style>
+</head>
+<body>
+  <div class="textholder">
+  <textarea id="config">
+// press shift key to apply
+
+# app
+background_color = "lightblue"
+text_size = 16
+
+##" text
+This text changes
+with the .mon config!
+
+# object
+## data put here
+"is converted to JSON"</textarea>
+  </div>
+  <div id="output">
+  </div>
+  <script src="monCore.bundle.js"></script>
+  <script>
+    const textarea = document.getElementById('config');
+    const output = document.getElementById('output');
+    let debounceTimeout;
+
+    function update() {
+      const configText = textarea.value;
+      try {
+        const config = parseMON(configText, 3);
+        const app = config.app || {};
+        document.body.style.backgroundColor = app.background_color || 'white';
+        output.style.fontSize = `${app.text_size || 12}px`;
+        textarea.style.fontSize = `${app.text_size || 12}px`;
+        let objText = JSON.stringify(config.object, null, 2);
+        output.innerHTML = `<div>${app.text}<br><hr><br>${objText}</div>`;
+      } catch (e) {
+        console.error('Parse error:', e.message);
+      }
+    }
+    
+    let timer = false;
+    function resetTimer() { timer = false; }
+    document.body.addEventListener('keydown', (e) => {
+      if (e.key === 'Shift' && !timer) {
+        timer = true;
+        update();
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(resetTimer, 100);
+      }
+    });
+
+  </script>
+</body>
+</html>
+
