@@ -37,39 +37,35 @@ async function processFiles(fileArg) {
     return [filePath.trim(), params];
   });
 
+  const lastFile = fileSpecs[fileSpecs.length - 1][0];
+  const outputDir = path.dirname(lastFile);
+  const ext = path.extname(lastFile);
+  const baseName = path.basename(lastFile, ext);
+  
+  // allow a nonexistent last file to specify destination
+  const lastFileExists = await fs.access(lastFile)
+    .then(() => true)
+    .catch(err => err.code === 'ENOENT' ? false : Promise.reject(err));
+  if (fileSpecs.length > 1 && !lastFileExists) {
+    fileSpecs.pop();
+  }
+
   const allMon = fileSpecs.every(([file]) => path.extname(file).toLowerCase() === '.mon');
   const singleJson = fileSpecs.length === 1 && path.extname(fileSpecs[0][0]).toLowerCase() === '.json';
 
   if (allMon) {
-    const lastFile = fileSpecs[fileSpecs.length - 1][0];
-    const outputDir = path.dirname(lastFile);
-    const ext = path.extname(lastFile);
-    const baseName = path.basename(lastFile, ext);
     const outputFile = path.join(outputDir, `${baseName}.json`);
-    
-    // allow a nonexistent last file to specify destination
-    const lastFileExists = await fs.access(lastFile)
-      .then(() => true)
-      .catch(err => err.code === 'ENOENT' ? false : Promise.reject(err));
-    if (fileSpecs.length > 1 && !lastFileExists) {
-      fileSpecs.pop();
-    }
-    
     const combined = await loadMON(fileSpecs);
     const outputData = JSON.stringify(combined, null, 2);
-
     await fs.writeFile(outputFile, outputData, 'utf8');
     console.log(`Converted ${fileSpecs.length > 1 ? 'MON files' : 'MON file'} to '${outputFile}'`);
     return outputFile;
   } else if (singleJson) {
+    const outputFile = path.join(outputDir, `${baseName}.mon`);
     const [filePath] = fileSpecs[0];
     const inputText = await fs.readFile(filePath, 'utf8');
-    const inputDir = path.dirname(filePath);
-    const inputBase = path.basename(filePath, '.json');
     const jsonObj = JSON.parse(inputText);
-    const outputFile = path.join(inputDir, `${inputBase}.mon`);
     const outputData = objToMon(jsonObj, { indentDepth: 2 });
-
     await fs.writeFile(outputFile, outputData, 'utf8');
     console.log(`Converted JSON to MON: '${outputFile}'`);
     return outputFile;
