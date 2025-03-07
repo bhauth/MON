@@ -1,8 +1,5 @@
 import { createToken, Lexer, CstParser } from 'chevrotain';
 
-const Hash = createToken({ name: 'Hash', pattern: /#+/ });
-const Slash = createToken({ name: 'Slash', pattern: /\// });
-const CommentLine = createToken({ name: 'CommentLine', pattern: /\/\/.*/ });
 const Dash = createToken({ name: 'Dash', pattern: /-/ });
 const Comma = createToken({ name: 'Comma', pattern: /,/ });
 const LBracket = createToken({ name: 'LBracket', pattern: /\[/ });
@@ -14,11 +11,11 @@ const TrueLiteral = createToken({ name: 'TrueLiteral', pattern: /\btrue\b/ });
 const FalseLiteral = createToken({ name: 'FalseLiteral', pattern: /\bfalse\b/ });
 const NullLiteral = createToken({ name: 'NullLiteral', pattern: /\bnull\b/ });
 const Identifier = createToken({ name: 'Identifier', pattern: /[a-zA-Z_]\w*/ });
-const NumberLiteral = createToken({ name: 'NumberLiteral', pattern: /(\d*\.\d+|\d+\.?\d*)/ });
+const NumberLiteral = createToken({ name: 'NumberLiteral', pattern: /-?(\d*\.\d+|\d+\.?\d*)/ });
 const WhiteSpace = createToken({ name: 'WhiteSpace', pattern: /\s+/, group: Lexer.SKIPPED });
 
 const allTokens = [
-  WhiteSpace, CommentLine, Hash, Slash, Dash, Comma, LBracket, RBracket, Equals, QuotedIdentifier, TrueLiteral, FalseLiteral, NullLiteral, StringLiteral, Identifier, NumberLiteral
+  WhiteSpace, NumberLiteral, Dash, Comma, LBracket, RBracket, Equals, QuotedIdentifier, TrueLiteral, FalseLiteral, NullLiteral, StringLiteral, Identifier
 ];
 const lexer = new Lexer(allTokens);
 
