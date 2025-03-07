@@ -6,16 +6,16 @@ import { objToMon } from './makeMon.js';
 
 async function loadMON(fileSpecs) {
   let combined = {};
-  let allTags = [];
-  let allTagCode = {};
-  let allSubTags = {};
+  let tagCode = {};
+  let subTags = {};
 
   for (const [filePath, params = {}] of fileSpecs) {
     const trust = parseInt(params.trust || '3', 10);
+    let parentTags = params.tag ? [params.tag] : [];
     const inputText = await fs.readFile(filePath, 'utf8');
     const baseName = path.basename(filePath, path.extname(filePath));
 
-    const data = parseMON(inputText, trust, trust >= 3 ? combined : null, allTags, allTagCode, allSubTags);
+    const data = parseMON(inputText, trust, trust >= 3 ? combined : null, parentTags, tagCode, subTags);
     if (fileSpecs.length > 1) {
       combined[baseName] = data;
     } else { combined = data; }
@@ -41,11 +41,21 @@ async function processFiles(fileArg) {
   const singleJson = fileSpecs.length === 1 && path.extname(fileSpecs[0][0]).toLowerCase() === '.json';
 
   if (allMon) {
+    const lastFile = fileSpecs[fileSpecs.length - 1][0];
+    const outputDir = path.dirname(lastFile);
+    const ext = path.extname(lastFile);
+    const baseName = path.basename(lastFile, ext);
+    const outputFile = path.join(outputDir, `${baseName}.json`);
+    
+    // allow a nonexistent last file to specify destination
+    const lastFileExists = await fs.access(lastFile)
+      .then(() => true)
+      .catch(err => err.code === 'ENOENT' ? false : Promise.reject(err));
+    if (fileSpecs.length > 1 && !lastFileExists) {
+      fileSpecs.pop();
+    }
+    
     const combined = await loadMON(fileSpecs);
-    const outputDir = path.dirname(fileSpecs[0][0]);
-    const outputFile = fileSpecs.length > 1
-      ? path.join(outputDir, 'combined.json')
-      : path.join(outputDir, `${path.basename(fileSpecs[0][0], '.mon')}.json`);
     const outputData = JSON.stringify(combined, null, 2);
 
     await fs.writeFile(outputFile, outputData, 'utf8');
@@ -76,16 +86,17 @@ async function main() {
     console.log('   or: node monTool.js "input.json"');
     console.log('Converts .mon file sets to .json files, or .json files to .mon');
     console.log('Note: Filenames must not contain { or }');
+    console.log('Parameters: {trust=int tag=string}');
     process.exit(1);
   }
 
-  for (const arg of args) {
+await Promise.all(args.map(async (arg) => {
     try {
       await processFiles(arg);
     } catch (err) {
       console.error(`Error processing "${arg}": ${err.message}`);
     }
-  }
+  }));
 }
 
 main().catch(err => {
