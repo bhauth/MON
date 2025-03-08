@@ -123,19 +123,6 @@ class MONParser {
     return { [key]: value };
   }
 
-  arrayItem() {
-    const isDash = this.peek() === '-';
-    const isComma = this.peek() === ',';
-    this.eat(isDash ? '-' : ',');
-    
-    if (this.peek() === 'QuoteID' || this.peek() === 'ID') {
-      const kvSet = this.KVSet();
-      return { value: kvSet, isDash, isComma };
-    }
-    const val = this.value();
-    return { value: val, isDash, isComma };
-  }
-
   bracketArray() {
     const items = [];
     if (this.peek() !== ']') {
