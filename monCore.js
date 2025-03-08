@@ -1,17 +1,17 @@
 const PATTERNS = [
-  { type: 'WS', pat: /\s+/, skip: true },
-  { type: 'NumLit', pat: /-?(\d*\.\d+|\d+\.?\d*)/ },
-  { type: '-', pat: /-/ },
-  { type: ',', pat: /,/ },
-  { type: '[', pat: /\[/ },
-  { type: ']', pat: /]/ },
-  { type: '=', pat: /=/ },
-  { type: 'QuoteID', pat: /'[^']*'/ },
-  { type: 'T', pat: /true\b/ },
-  { type: 'F', pat: /false\b/ },
-  { type: 'Null', pat: /null\b/ },
-  { type: 'StringLit', pat: /"[^"]*"/ },
-  { type: 'ID', pat: /[a-zA-Z_]\w*/ },
+  { type: 'WS', pat: /\s+/y, skip: true },
+  { type: 'NumLit', pat: /-?(\d*\.\d+|\d+\.?\d*)/y },
+  { type: '-', pat: /-/y },
+  { type: ',', pat: /,/y },
+  { type: '[', pat: /\[/y },
+  { type: ']', pat: /]/y },
+  { type: '=', pat: /=/y },
+  { type: 'QuoteID', pat: /'[^']*'/y },
+  { type: 'T', pat: /\btrue\b/y },
+  { type: 'F', pat: /\bfalse\b/y },
+  { type: 'Null', pat: /\bnull\b/y },
+  { type: 'StringLit', pat: /"[^"]*"/y },
+  { type: 'ID', pat: /[a-zA-Z_]\w*/y },
 ];
 
 function tokenize(input) {
@@ -21,8 +21,10 @@ function tokenize(input) {
   while (pos < input.length) {
     let matched = false;
     for (const { type, pat, skip } of PATTERNS) {
-      const match = input.slice(pos).match(pat);
-      if (match && match.index === 0) {
+      pat.lastIndex = pos;
+      const match = pat.exec(input);
+
+      if (match) {
         if (!skip) {
           tokens.push({ type, value: match[0], pos });
         }
@@ -38,6 +40,8 @@ function tokenize(input) {
   return tokens;
 }
 
+let EOF = { type: 'EOF' };
+
 class MONParser {
   constructor(tokens) {
     this.tokens = tokens;
@@ -45,11 +49,11 @@ class MONParser {
   }
 
   peek() {
-    return this.tokens[this.pos] || { type: 'EOF' };
+    return this.tokens[this.pos]?.type || 'EOF';
   }
 
   eat(type) {
-    const token = this.peek();
+    const token = this.tokens[this.pos] || EOF;
     if (token.type === type) {
       this.pos++;
       return token;
@@ -57,8 +61,8 @@ class MONParser {
     throw new Error(`Expected ${type}, got ${token.type} at position ${token.pos}`);
   }
 
-  optional(type) {
-    if (this.peek().type === type) {
+  option(type) {
+    if (this.peek() === type) {
       this.pos++;
       return true;
     }
@@ -70,23 +74,28 @@ class MONParser {
     const items = [];
     let currentSubArray = null;
 
-    while (this.peek().type !== 'EOF') {
-      const next = this.peek().type;
+    while (this.peek() !== 'EOF') {
+      const next = this.peek();
       if (next === 'QuoteID' || next === 'ID') {
         const kv = this.keyValue();
         Object.assign(result, kv);
       } else if (next === '-' || next === ',') {
-        const item = this.arrayItem();
-        if (item.isDash) {
+        const isDash = next === '-';
+        this.eat(isDash ? '-' : ',');
+        
+        const nextType = this.peek();
+        let value = nextType === 'QuoteID' || nextType === 'ID' ? this.KVSet() : this.value();
+
+        if (isDash) {
           if (currentSubArray) {
             items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
           }
-          currentSubArray = [item.value];
-        } else if (item.isComma) {
+          currentSubArray = [value];
+        } else {
           if (currentSubArray) {
-            currentSubArray.push(item.value);
+            currentSubArray.push(value);
           } else {
-            items.push(item.value);
+            items.push(value);
           }
         }
       } else {
@@ -100,10 +109,10 @@ class MONParser {
     }
 
     return items.length > 0 ? items : result;
-  }
+}
 
   keyValue() {
-    const keyToken = this.peek().type === 'QuoteID'
+    const keyToken = this.peek() === 'QuoteID'
       ? this.eat('QuoteID')
       : this.eat('ID');
     const key = keyToken.type === 'QuoteID'
@@ -115,11 +124,11 @@ class MONParser {
   }
 
   arrayItem() {
-    const isDash = this.peek().type === '-';
-    const isComma = this.peek().type === ',';
+    const isDash = this.peek() === '-';
+    const isComma = this.peek() === ',';
     this.eat(isDash ? '-' : ',');
     
-    if (this.peek().type === 'QuoteID' || this.peek().type === 'ID') {
+    if (this.peek() === 'QuoteID' || this.peek() === 'ID') {
       const kvSet = this.KVSet();
       return { value: kvSet, isDash, isComma };
     }
@@ -128,11 +137,10 @@ class MONParser {
   }
 
   bracketArray() {
-    this.eat('[');
     const items = [];
-    if (this.peek().type !== ']') {
+    if (this.peek() !== ']') {
       items.push(this.value());
-      while (this.optional(',')) {
+      while (this.option(',')) {
         items.push(this.value());
       }
     }
@@ -141,22 +149,18 @@ class MONParser {
   }
 
   value() {
-    const token = this.peek();
+    const token = this.tokens[this.pos] || EOF;
+    this.pos++;
     switch (token.type) {
       case 'StringLit':
-        this.pos++;
         return token.value.slice(1, -1);
       case 'NumLit':
-        this.pos++;
         return parseFloat(token.value);
       case 'T':
-        this.pos++;
         return true;
       case 'F':
-        this.pos++;
         return false;
       case 'Null':
-        this.pos++;
         return null;
       case '[':
         return this.bracketArray();
@@ -169,7 +173,7 @@ class MONParser {
     const result = {};
     do {
       Object.assign(result, this.keyValue());
-    } while (this.peek().type === 'QuoteID' || this.peek().type === 'ID');
+    } while (this.peek() === 'QuoteID' || this.peek() === 'ID');
     return result;
   }
 }
