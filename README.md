@@ -2,25 +2,62 @@
 # Markdown Object Notation
 
 
-## purpose
+## what it is
 
-This is a sketch of a new human-readable data format. MON is meant to be easily converted to/from JSON and related formats, but be easier for humans to read and write with a text editor. It has similar goals to TOML and YAML, but is meant to handle **deeply nested** data in a more readable way than those formats.
+MON is a new human-readable data format. It's meant to:
 
-I do think MON is better than current formats, but usually, new programming/data languages need backing from a major institution or celebrity-engineer to get established. However, you can use the code here to convert MON to JSON today, and that might be easier than writing JSON other ways.
+* be easily converted to JSON
+* be easier for humans to read and write with a text editor than JSON
+* handle **deeply nested** data in a readable way
+
+
+## use cases
+
+### data holders
+
+You want to store and edit a lot of structured information for a program. For example, a file containing every dialogue tree for characters in a game. You can write that as a MON file, and then convert it to JSON as part of a build step. Dittos and tags can be used to apply templates and reduce duplication.
+
+### config files
+
+You have a program using Javascript, perhaps a web app, and want users to be able to read and edit a complex config file. You can parse a MON config file using a 140kb standalone javascript file. (Yes, it should be smaller, but Chevrotain is larger than necessary.)
+
+### data validation
+
+Using subtags (see below) a MON file can automatically apply tags to sections of another MON file, causing corresponding code to run on those sections. That can be used to apply schemas to untrusted data.
+
+### note
+
+You shouldn't expect MON to become a standard. I do think MON is better than current formats, but usually, new programming/data languages need backing from a major institution or celebrity-engineer to get established. MON was not made to try to replace existing standards; it's just a tool that's useful now.
 
 
 ## current implementation
 
-An initial implementation is available [here](https://github.com/bhauth/MON). Usage:
+### demo
 
-- install Node if you haven't
+A simple web demo is [here](https://bhauth.com/files/dev/mon/).
+
+### to run
+
+- [download mon.js here](https://github.com/bhauth/MON/releases)
+- node mon.js \[one or more mon/json files\]
+
+That produces .json files from .mon ones, and .mon files from .json ones. Conversion of complex JSON to MON is currently limited.
+
+Sets of files can be combined as follows:
+
+- node mon.js "file1\{parameters\}file2\{parameters\}..."
+
+The output destination is set by the last file. See "file handling" below for advanced usage.
+
+### to build
+
+- download source [here](https://github.com/bhauth/MON).
+- install Node
 - cd \[directory\]
 - npm install
-- node monTool.js \[one or more files\]
+- npx rollup -c
 
-That produces .json files from .mon ones, and .mon files from .json ones. Conversion of complex structures to .mon is currently limited.
-
-Note that Node takes hundreds of milliseconds to start up. Bun starts up ~2x as fast as Node, but either way you want to batch processing.
+That puts **mon.js** in **/dist** and **monCore.bundle.js** in **/demo**.
 
 
 ## VS existing formats
@@ -39,6 +76,8 @@ I don't like being forced to quote keys.
 ### YAML
 
 YAML is complex, whitespace-sensitive, and does implicit conversions that can cause bugs. Various people have written [posts](https://hitchdev.com/strictyaml/why/implicit-typing-removed/) about [problems](https://ruudvanasseldonk.com/2023/01/11/the-yaml-document-from-hell) using YAML can cause.
+
+MON is not indentation-sensitive.
 
 ### TOML
 
@@ -202,7 +241,7 @@ Nesting with headers can potentially escape schemas, so it's only allowed if **t
     ## array.[]
     c = "array"
     d = "up"
-          
+
     🡺 
 
     "epsilon": {
@@ -327,7 +366,7 @@ Ditto sections can produce exponential amounts of data, so they're only allowed 
 
 Using **##;** makes a section a code block. Code blocks are only executed if **trust ≥ 2**.
 
-Code blocks can access their parent section as **this** and if **trust ≥ 3** they can access the root object as **root**.
+Code blocks can access their parent section as **this** and their file's root object as **root**. If **trust ≥ 3** they can access the global root object (containing all files in the set) as **groot**.
 
 The above code block also executes a **console.log**. If it was copied by a ditto, the message would be printed twice.
 
@@ -442,7 +481,16 @@ If we want to apply a tag to every element of an array, we can do that by adding
     }
 
 
-## trust levels
+## file handling
+
+To process some MON files using another MON file as a schema, you can run:
+
+    mon.js "schema.mon{trust=3}file1.mon{trust=-1 tag=schema_tag}file2.mon{trust=-1 tag=schema_tag}destination.json"
+
+The files are loaded in order. The parameters apply **schema_tag** to the top-level object of the file. Subtags can then cause a cascade of tag applications, which can trigger code that validates the sections.
+
+
+### trust levels
 
 **trust** is a parsing function parameter. Trust levels are defined by what input data must not be allowed to do, as follows:
 
@@ -452,36 +500,20 @@ If we want to apply a tag to every element of an array, we can do that by adding
 * 0 : cause excessive memory or time usage
 * -1 : avoid schemas being applied
 
+### interface
+
+To get a javascript object from a set of MON files:
+
+    import { loadMON } from './monTool.js';
+    object = loadMON([filePath, params = {}]);
+
+To get a javascript object from MON text:
+
+    import { parseMON } from './monCore.js';
+    object = parseMON(text, trust = 1);
+
 
 ## future plans
-
-### file handling
-
-To process a folder of MON files using another MON file as a schema, the code would be something like:
-
-    MON.load([
-      [schema_path, {trust: 0}],
-      [data_directory, {type: "type_in_schema", trust: 0}]
-    ])
-
-The type of that would be something like:
-
-    type inputFile = string | [string, Record<string, any>];
-    type validationErrors = any[];
-    type loaderType = (
-      input: inputFile[]
-    ) => [any, validationErrors];
-
-The array of (files / directories) is loaded in order, and each can have a type assigned to it from previously loaded files. Untrusted files have more-limited schema features.
-
-Since this is using Typescript already, the same function could also handle JSON files.
-
-File data can go inside an object with that filename. If we want a file with data that goes deep inside another file, files can have names such as:
-
-* base.mon
-* base.some.nesting.mon
-* base/more/nesting.mon
-
 
 ### logo / 紋章
 

@@ -33,6 +33,7 @@
   <div class="textholder">
   <textarea id="config">
 // press shift key to apply
+// code: https://github.com/bhauth/MON
 
 # app
 background_color = "lightblue"
@@ -57,12 +58,13 @@ with the .mon config!
     function update() {
       const configText = textarea.value;
       try {
-        const config = parseMON(configText, 3);
+        let config = parseMON(configText, 3);
         const app = config.app || {};
+        delete config.app;
         document.body.style.backgroundColor = app.background_color || 'white';
         output.style.fontSize = `${app.text_size || 12}px`;
         textarea.style.fontSize = `${app.text_size || 12}px`;
-        let objText = JSON.stringify(config.object, null, 2);
+        let objText = JSON.stringify(config, null, 2);
         output.innerHTML = `<div>${app.text}<br><hr><br>${objText}</div>`;
       } catch (e) {
         console.error('Parse error:', e.message);
