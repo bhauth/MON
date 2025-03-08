@@ -19,7 +19,7 @@ You want to store and edit a lot of structured information for a program. For ex
 
 ### config files
 
-You have a program using Javascript, perhaps a web app, and want users to be able to read and edit a complex config file. You can parse a MON config file using a 140kb standalone javascript file. (Yes, it should be smaller, but Chevrotain is larger than necessary.)
+You have a program using Javascript, perhaps a web app, and want users to be able to read and edit a complex config file. You can parse a MON config file using a 6kb standalone javascript file, and it parses quickly.
 
 ### data validation
 
@@ -38,6 +38,7 @@ A simple web demo is [here](https://bhauth.com/files/dev/mon/).
 
 ### to run
 
+- (install Node.js)
 - [download mon.js here](https://github.com/bhauth/MON/releases)
 - node mon.js \[one or more mon/json files\]
 
@@ -52,10 +53,9 @@ The output destination is set by the last file. See "file handling" below for ad
 ### to build
 
 - download source [here](https://github.com/bhauth/MON).
-- install Node
 - cd \[directory\]
 - npm install
-- npx rollup -c
+- npm run build
 
 That puts **mon.js** in **/dist** and **monCore.bundle.js** in **/demo**.
 

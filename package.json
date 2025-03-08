@@ -5,13 +5,12 @@
   "type": "module",
   "main": "monTool.js",
   "scripts": {
+    "build": "npx rollup -c",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "bhauth",
   "license": "CC-BY-SA",
-  "dependencies": {
-    "chevrotain": "^11.0.3"
-  },
+  "dependencies": { },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.3",
     "@rollup/plugin-node-resolve": "^16.0.0",

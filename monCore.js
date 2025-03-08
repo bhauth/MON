@@ -1,185 +1,97 @@
-import { createToken, Lexer, CstParser } from 'chevrotain';
-
-const Dash = createToken({ name: 'Dash', pattern: /-/ });
-const Comma = createToken({ name: 'Comma', pattern: /,/ });
-const LBracket = createToken({ name: 'LBracket', pattern: /\[/ });
-const RBracket = createToken({ name: 'RBracket', pattern: /]/ });
-const Equals = createToken({ name: 'Equals', pattern: /=/ });
-const StringLiteral = createToken({ name: 'StringLiteral', pattern: /"[^"]*"/, line_breaks: true });
-const QuotedIdentifier = createToken({ name: 'QuotedIdentifier', pattern: /'[^"]*'/, line_breaks: false });
-const TrueLiteral = createToken({ name: 'TrueLiteral', pattern: /\btrue\b/ });
-const FalseLiteral = createToken({ name: 'FalseLiteral', pattern: /\bfalse\b/ });
-const NullLiteral = createToken({ name: 'NullLiteral', pattern: /\bnull\b/ });
-const Identifier = createToken({ name: 'Identifier', pattern: /[a-zA-Z_]\w*/ });
-const NumberLiteral = createToken({ name: 'NumberLiteral', pattern: /-?(\d*\.\d+|\d+\.?\d*)/ });
-const WhiteSpace = createToken({ name: 'WhiteSpace', pattern: /\s+/, group: Lexer.SKIPPED });
-
-const allTokens = [
-  WhiteSpace, NumberLiteral, Dash, Comma, LBracket, RBracket, Equals, QuotedIdentifier, TrueLiteral, FalseLiteral, NullLiteral, StringLiteral, Identifier
+const PATTERNS = [
+  { type: 'WS', pat: /\s+/, skip: true },
+  { type: 'NumLit', pat: /-?(\d*\.\d+|\d+\.?\d*)/ },
+  { type: '-', pat: /-/ },
+  { type: ',', pat: /,/ },
+  { type: '[', pat: /\[/ },
+  { type: ']', pat: /]/ },
+  { type: '=', pat: /=/ },
+  { type: 'QuoteID', pat: /'[^']*'/ },
+  { type: 'T', pat: /true\b/ },
+  { type: 'F', pat: /false\b/ },
+  { type: 'Null', pat: /null\b/ },
+  { type: 'StringLit', pat: /"[^"]*"/ },
+  { type: 'ID', pat: /[a-zA-Z_]\w*/ },
 ];
-const lexer = new Lexer(allTokens);
 
-class MONParser extends CstParser {
-  constructor() {
-    super(allTokens);
-    const $ = this;
+function tokenize(input) {
+  const tokens = [];
+  let pos = 0;
 
-    $.RULE('section', () => {
-      $.MANY(() => {
-        $.OR([
-          { ALT: () => $.SUBRULE($.keyValue) },
-          { ALT: () => $.SUBRULE($.arrayItem) },
-          { ALT: () => $.SUBRULE($.value) }
-        ]);
-      });
-    });
-
-    $.RULE('keyValue', () => {
-      $.OR([
-        { ALT: () => $.CONSUME(QuotedIdentifier) },
-        { ALT: () => $.CONSUME(Identifier) }
-      ]);
-      $.CONSUME(Equals);
-      $.SUBRULE($.value);
-    });
-
-    $.RULE('arrayItem', () => {
-      $.OR([
-        { ALT: () => {
-          $.CONSUME(Dash);
-          $.SUBRULE($.value);
-          }},
-        { ALT: () => {
-          $.CONSUME(Comma);
-          $.SUBRULE2($.value);
-          }},
-        { ALT: () => {
-          $.CONSUME2(Dash);
-          $.SUBRULE($.keyValueSet);
-          }},
-        { ALT: () => {
-          $.CONSUME2(Comma);
-          $.SUBRULE2($.keyValueSet);
-          }}
-      ]);
-    });
-
-    $.RULE('bracketArray', () => {
-      $.CONSUME(LBracket);
-      $.OPTION(() => {
-        $.SUBRULE($.value);
-        $.MANY(() => {
-          $.CONSUME(Comma);
-          $.SUBRULE2($.value);
-        });
-      });
-      $.CONSUME(RBracket);
-    });
-
-    $.RULE('value', () => {
-      $.OR([
-        { ALT: () => $.CONSUME(StringLiteral) },
-        { ALT: () => $.CONSUME(NumberLiteral) },
-        { ALT: () => $.CONSUME(TrueLiteral) },
-        { ALT: () => $.CONSUME(FalseLiteral) },
-        { ALT: () => $.CONSUME(NullLiteral) },
-        { ALT: () => $.SUBRULE($.bracketArray) }
-      ]);
-    });
-
-    $.RULE('keyValueSet', () => {
-      $.AT_LEAST_ONE(() => {
-        $.SUBRULE($.keyValue);
-      });
-    });
-
-    this.performSelfAnalysis();
-  }
-}
-
-const parser = new MONParser();
-
-function extractQuotedIdentifier(node) {
-  return node.children.QuotedIdentifier[0].image.slice(1, -1);
-}
-
-function extractStringLiteral(node) {
-  return node.children.StringLiteral[0].image.slice(1, -1);
-}
-
-function extractFloat(node) {
-  return parseFloat(node.children.NumberLiteral[0].image);
-}
-
-function extractValue(node) {
-  if (node.children.StringLiteral) return extractStringLiteral(node);
-  if (node.children.NumberLiteral) return extractFloat(node);
-  if (node.children.TrueLiteral) return true;
-  if (node.children.FalseLiteral) return false;
-  if (node.children.NullLiteral) return null;
-  if (node.children.bracketArray) {
-    return extractBracketArray(node.children.bracketArray[0]);
-  }
-  return undefined;
-}
-
-function extractBracketArray(arrayNode) {
-  const items = [];
-  arrayNode.children.value?.forEach(v => {
-    items.push(extractValue(v));
-  });
-  return items;
-}
-
-function extractKeyValueSet(kvChildren) {
-  const obj = {};
-  kvChildren.keyValue.forEach(kv => {
-    let key;
-    if (kv.children.QuotedIdentifier) {
-      key = extractQuotedIdentifier(kv);
-    } else {
-      key = kv.children.Identifier[0].image;
+  while (pos < input.length) {
+    let matched = false;
+    for (const { type, pat, skip } of PATTERNS) {
+      const match = input.slice(pos).match(pat);
+      if (match && match.index === 0) {
+        if (!skip) {
+          tokens.push({ type, value: match[0], pos });
+        }
+        pos += match[0].length;
+        matched = true;
+        break;
+      }
     }
-    obj[key] = extractValue(kv.children.value[0]);
-  });
-  return obj;
+    if (!matched) {
+      throw new Error(`Unexpected character at position ${pos}: ${input[pos]}`);
+    }
+  }
+  return tokens;
 }
 
-function parseItem(sectionText) {
-  const lexResult = lexer.tokenize(sectionText);
-  if (lexResult.errors.length) throw new Error(lexResult.errors[0].message);
-  parser.input = lexResult.tokens;
-  const cst = parser.section();
-  if (parser.errors.length) throw new Error(parser.errors[0].message);
-
-  if (cst.children.keyValue) {
-    return extractKeyValueSet(cst.children);
+class MONParser {
+  constructor(tokens) {
+    this.tokens = tokens;
+    this.pos = 0;
   }
 
-  if (cst.children.arrayItem) {
+  peek() {
+    return this.tokens[this.pos] || { type: 'EOF' };
+  }
+
+  eat(type) {
+    const token = this.peek();
+    if (token.type === type) {
+      this.pos++;
+      return token;
+    }
+    throw new Error(`Expected ${type}, got ${token.type} at position ${token.pos}`);
+  }
+
+  optional(type) {
+    if (this.peek().type === type) {
+      this.pos++;
+      return true;
+    }
+    return false;
+  }
+
+  section() {
+    const result = {};
     const items = [];
     let currentSubArray = null;
 
-    for (const item of cst.children.arrayItem) {
-      let value;
-
-      if (item.children.keyValueSet) {
-        value = extractKeyValueSet(item.children.keyValueSet[0].children);
-      } else if (item.children.value) {
-        value = extractValue(item.children.value[0]);
-      }
-
-      if (item.children.Dash) {
-        if (currentSubArray) {
-          items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
+    while (this.peek().type !== 'EOF') {
+      const next = this.peek().type;
+      if (next === 'QuoteID' || next === 'ID') {
+        const kv = this.keyValue();
+        Object.assign(result, kv);
+      } else if (next === '-' || next === ',') {
+        const item = this.arrayItem();
+        if (item.isDash) {
+          if (currentSubArray) {
+            items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
+          }
+          currentSubArray = [item.value];
+        } else if (item.isComma) {
+          if (currentSubArray) {
+            currentSubArray.push(item.value);
+          } else {
+            items.push(item.value);
+          }
         }
-        currentSubArray = [value];
-      } else if (item.children.Comma) {
-        if (currentSubArray) {
-          currentSubArray.push(value);
-        } else {
-          items.push(value);
-        }
+      } else {
+        const value = this.value();
+        return value;
       }
     }
 
@@ -187,15 +99,89 @@ function parseItem(sectionText) {
       items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
     }
 
+    return items.length > 0 ? items : result;
+  }
+
+  keyValue() {
+    const keyToken = this.peek().type === 'QuoteID'
+      ? this.eat('QuoteID')
+      : this.eat('ID');
+    const key = keyToken.type === 'QuoteID'
+      ? keyToken.value.slice(1, -1)
+      : keyToken.value;
+    this.eat('=');
+    const value = this.value();
+    return { [key]: value };
+  }
+
+  arrayItem() {
+    const isDash = this.peek().type === '-';
+    const isComma = this.peek().type === ',';
+    this.eat(isDash ? '-' : ',');
+    
+    if (this.peek().type === 'QuoteID' || this.peek().type === 'ID') {
+      const kvSet = this.KVSet();
+      return { value: kvSet, isDash, isComma };
+    }
+    const val = this.value();
+    return { value: val, isDash, isComma };
+  }
+
+  bracketArray() {
+    this.eat('[');
+    const items = [];
+    if (this.peek().type !== ']') {
+      items.push(this.value());
+      while (this.optional(',')) {
+        items.push(this.value());
+      }
+    }
+    this.eat(']');
     return items;
   }
 
-  if (cst.children.value) {
-    return extractValue(cst.children.value[0]);
+  value() {
+    const token = this.peek();
+    switch (token.type) {
+      case 'StringLit':
+        this.pos++;
+        return token.value.slice(1, -1);
+      case 'NumLit':
+        this.pos++;
+        return parseFloat(token.value);
+      case 'T':
+        this.pos++;
+        return true;
+      case 'F':
+        this.pos++;
+        return false;
+      case 'Null':
+        this.pos++;
+        return null;
+      case '[':
+        return this.bracketArray();
+      default:
+        throw new Error(`Unexpected value token: ${token.type} at position ${token.pos}`);
+    }
   }
 
-  return {};
+  KVSet() {
+    const result = {};
+    do {
+      Object.assign(result, this.keyValue());
+    } while (this.peek().type === 'QuoteID' || this.peek().type === 'ID');
+    return result;
+  }
 }
+
+const parser = new MONParser([]);
+
+function parseItem(sectionText) {
+  parser.tokens = tokenize(sectionText);
+  parser.pos = 0; // Reset position
+  return parser.section();
+}
+
 
 function parseSection(node, trust, root = null, groot = null,
     tags = [], tagCode = {}, subTags = {}, inTag = false) {
@@ -210,7 +196,7 @@ function parseSection(node, trust, root = null, groot = null,
   }
   
   let childData = null;
-  for (const child of node.children) {
+  for (const child of node.kids) {
     let [cname, ctags] = child.name.split(' : ');
     ctags = ctags ? ctags.trim().split(/\s+/) : [];
     cname = cname.trim();
@@ -234,7 +220,7 @@ function parseSection(node, trust, root = null, groot = null,
 
     case 'CODE': {
       if (trust < 2) {
-        console.log(`Code block in section "${cname}" skipped due to trust level.`);
+        console.log(`Code section "${cname}" skipped due to trust level.`);
         continue;
       }
 
@@ -251,7 +237,7 @@ function parseSection(node, trust, root = null, groot = null,
     
     case 'TAG': {
       if (trust < 3) {
-        console.log(`Tag block in section "${cname}" skipped due to trust level.`);
+        console.log(`Tag section "${cname}" skipped due to trust level.`);
         continue;
       }
       let fn = null;
@@ -359,7 +345,7 @@ function countLeadingHashes(line) {
 
 export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {}, subTags = {}) {
   const lines = text.split('\n');
-  let stack = [{ level: 0, name: '', content: [], children: [] }];
+  let stack = [{ level: 0, name: '', content: [], kids: [] }];
   let current = stack[0];
   let lastValidNodes = [];
 
@@ -368,10 +354,10 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
 
   // build hierarchy
   for (let line of lines) {
-    line = line.trimStart();
+    if (!textLevel) { line = line.trimStart(); }
 
     if (commentLevel) {
-      if (line.startsWith('#') && (countLeadingHashes(line) <= commentLevel)) {
+      if (line[0] === '#' && (countLeadingHashes(line) <= commentLevel)) {
         commentLevel = 0;
       } else continue;
     }
@@ -408,21 +394,21 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       }
       current = stack[stack.length - 1];
       
-      if (isDitto && current.children.length === 0) {
+      if (isDitto && current.kids.length === 0) {
         isDitto = false;
         nodeType = 'TEMPLATE';
       }
       
       let headerLength = isDitto || (nodeType != 'NORMAL') ? level + 1 : level;
       let name = line.slice(headerLength).trim();
-      const node = { level, name, content: [], children: [], nodeType };
+      const node = { level, name, content: [], kids: [], nodeType };
       if (isDitto && trust > 0 && lastValidNodes[level]) {
         node.content = [...lastValidNodes[level].content];
-        node.children = [...lastValidNodes[level].children];
+        node.kids = [...lastValidNodes[level].kids];
       }
 
       stack.push(node);
-      current.children.push(node);
+      current.kids.push(node);
       current = node;
 
       if (!isDitto
