@@ -13,10 +13,7 @@ export function objToMon(json, options = { indentDepth: 2 }) {
 
 function sectionToMON(key, value, level, lines, indent) {
   const header = "#".repeat(level + 1);
-  let needQuote = key.includes(" ")
-    || key === "null" || key === "true" || key === "false";
-  const fmtKey = needQuote ? `'${key}'` : key;
-  const isRoot = level === 0;
+  const fmtKey = `'${key}'`;
 
   if (typeof value === "string" && value.includes("\n")) {
     lines.push(`${header}" ${key}`);
@@ -51,6 +48,7 @@ function sectionToMON(key, value, level, lines, indent) {
       sectionToMON(k, v, level + 1, lines, indent);
     }
   } else {
+    const isRoot = level === 0;
     const formatted = formatValue(value);
     lines.push(isRoot ? `${header} ${key}` : `${indent}${fmtKey} = ${formatted}`);
     if (isRoot) lines.push(`${indent}${formatted}`);
@@ -58,8 +56,9 @@ function sectionToMON(key, value, level, lines, indent) {
 }
 
 function formatValue(value) {
-  return typeof value === "string" ? `"${value}"`
-    : value === null || typeof value === "boolean" || typeof value === "number" ? String(value)
+  let type = typeof value;
+  return type === "string" ? `"${value}"`
+    : value === null || type === "boolean" || type === "number" ? String(value)
     : Array.isArray(value) ? `[${value.map(formatValue).join(", ")}]`
-    : (() => { throw new Error(`Unsupported type: ${typeof value}`) })();
+    : (() => { throw new Error(`Unsupported type: ${type}`) })();
 }

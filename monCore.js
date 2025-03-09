@@ -139,20 +139,14 @@ class MONParser {
     const token = this.tokens[this.pos] || EOF;
     this.pos++;
     switch (token.type) {
-      case 'StringLit':
-        return token.value.slice(1, -1);
-      case 'NumLit':
-        return parseFloat(token.value);
-      case 'T':
-        return true;
-      case 'F':
-        return false;
-      case 'Null':
-        return null;
-      case '[':
-        return this.bracketArray();
+      case 'StringLit': return token.value.slice(1, -1);
+      case 'NumLit': return parseFloat(token.value);
+      case 'T': return true;
+      case 'F': return false;
+      case 'Null': return null;
+      case '[': return this.bracketArray();
       default:
-        throw new Error(`Unexpected value token: ${token.type} at position ${token.pos}`);
+        throw new Error(`Unexpected token: ${token.type} at position ${token.pos}`);
     }
   }
 
@@ -295,7 +289,8 @@ function parseSection(node, trust, root = null, groot = null,
     for (let i = 0; i < prefixes.length - 1; i++) {
       let prefix = handlePrefix(prefixes[i], destination);
       if (!destination[prefix]) { destination[prefix] = {}; }
-      if ((prefixes[i + 1] === "[]") && !Array.isArray(destination[prefix])) {
+      let next = prefixes[i + 1];
+      if ((next === '0' || next === "[]") && !Array.isArray(destination[prefix])) {
         destination[prefix] = [];
       }
       destination = destination[prefix];
@@ -363,21 +358,15 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       }
       
       let nodeType = 'NORMAL';
-      let isComment = false;
       let isDitto = false;
       textLevel = 0;
       
       switch (line[level]) {
-      case '/': isComment = true; nodeType = 'COMMENT'; break;
+      case '/': commentLevel = level; nodeType = 'COMMENT'; continue;
       case '"': textLevel = level; nodeType = 'TEXT'; break;
       case '=': isDitto = true; break;
       case ';': nodeType = 'CODE'; break;
       case ':': nodeType = 'TAG'; break;
-      }
-
-      if (isComment) {
-        commentLevel = level;
-        continue;
       }
 
       while (stack.length && stack[stack.length - 1].level >= level) {
