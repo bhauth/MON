@@ -167,6 +167,7 @@ function parseItem(sectionText) {
   return parser.section();
 }
 
+let digits = /^\d+$|^\[\]$/;
 
 function parseSection(node, trust, root = null, groot = null,
     tags = [], tagCode = {}, subTags = {}, inTag = false) {
@@ -180,10 +181,11 @@ function parseSection(node, trust, root = null, groot = null,
     throw new Error(`\nParser error in section "${node.name}":\n${err.message}`)
   }
   
-  let childData = null;
+  let childData = undefined;
+  let space = /\s+/;
   for (const child of node.kids) {
     let [cname, ctags] = child.name.split(' : ');
-    ctags = ctags ? ctags.trim().split(/\s+/) : [];
+    ctags = ctags ? ctags.trim().split(space) : [];
     cname = cname.trim();
     
     if (!inTag) {
@@ -260,7 +262,7 @@ function parseSection(node, trust, root = null, groot = null,
       break;
     }
 
-    if (!childData || inTag) { continue; }
+    if (childData === undefined || inTag) { continue; }
     let prefixes = cname.split('.');
 
     if (trust < 0) {
@@ -284,13 +286,14 @@ function parseSection(node, trust, root = null, groot = null,
       return prefix;
     };
 
+    if (digits.test(prefixes[0]) && !Array.isArray(obj)) { obj = []; }
     let destination = obj;
 
     for (let i = 0; i < prefixes.length - 1; i++) {
       let prefix = handlePrefix(prefixes[i], destination);
       if (!destination[prefix]) { destination[prefix] = {}; }
       let next = prefixes[i + 1];
-      if ((next === '0' || next === "[]") && !Array.isArray(destination[prefix])) {
+      if (digits.test(next) && !Array.isArray(destination[prefix])) {
         destination[prefix] = [];
       }
       destination = destination[prefix];
