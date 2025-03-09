@@ -77,12 +77,12 @@ async function processFiles(fileArg) {
 async function main() {
   const args = process.argv.slice(2);
   if (!args.length) {
-    console.log('Usage: node monTool.js "file1.mon" "file2.mon"');
-    console.log('   or: node monTool.js "schema.mon{params}data.mon{params}"');
-    console.log('   or: node monTool.js "input.json"');
-    console.log('Converts .mon file sets to .json files, or .json files to .mon');
-    console.log('Note: Filenames must not contain { or }');
-    console.log('Parameters: {trust=int tag=string}');
+console.log(`Usage: node monTool.js "file1.mon" "file2.mon"
+  or: node monTool.js "schema.mon{params}data.mon{params}"
+  or: node monTool.js "input.json"
+Converts .mon file sets to .json files, or .json files to .mon
+Note: Filenames must not contain { or }
+Parameters: {trust=int tag=string}`);
     process.exit(1);
   }
 

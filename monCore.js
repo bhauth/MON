@@ -195,15 +195,15 @@ function parseSection(node, trust, root = null, groot = null,
     }
     
     switch (child.nodeType) {
-    case 'COMMENT':
-    case 'TEMPLATE':
+    case '/':
+    case '=':
       continue;
 
     case 'TEXT':
       childData = child.content.join('\n');
       break;
 
-    case 'CODE': {
+    case ';': {
       if (trust < 2) {
         console.log(`Code section "${cname}" skipped due to trust level.`);
         continue;
@@ -220,7 +220,7 @@ function parseSection(node, trust, root = null, groot = null,
       break;
     }
     
-    case 'TAG': {
+    case ':': {
       if (trust < 3) {
         console.log(`Tag section "${cname}" skipped due to trust level.`);
         continue;
@@ -237,11 +237,11 @@ function parseSection(node, trust, root = null, groot = null,
       continue;
     }
     
-    case 'NORMAL':
+    case '#':
     default:
       if (inTag) {
         let [pname, ptags] = node.name.split(' : ');
-        let pLabel = (node.nodeType === "TAG") ? pname : ptags;
+        let pLabel = (node.nodeType === ':') ? pname : ptags;
         if (!subTags[pLabel]) { subTags[pLabel] = []; };
         let parent = subTags[pLabel];
         let cLabel = cname;
@@ -357,29 +357,30 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
         continue;
       }
       
-      let nodeType = 'NORMAL';
-      let isDitto = false;
+      let nodeType = line[level];
       textLevel = 0;
       
-      switch (line[level]) {
-      case '/': commentLevel = level; nodeType = 'COMMENT'; continue;
+      switch (nodeType) {
+      case '/': commentLevel = level; continue;
       case '"': textLevel = level; nodeType = 'TEXT'; break;
-      case '=': isDitto = true; break;
-      case ';': nodeType = 'CODE'; break;
-      case ':': nodeType = 'TAG'; break;
+      case '=': 
+      case ';': 
+      case ':': break;
+      default: nodeType = '#'; break;
       }
 
       while (stack.length && stack[stack.length - 1].level >= level) {
         stack.pop();
       }
       current = stack[stack.length - 1];
-      
-      if (isDitto && current.kids.length === 0) {
-        isDitto = false;
-        nodeType = 'TEMPLATE';
+
+      let isDitto = false;
+      if (nodeType === '=' && current.kids.length !== 0) {
+        nodeType = '#';
+        isDitto = true;
       }
-      
-      let headerLength = isDitto || (nodeType != 'NORMAL') ? level + 1 : level;
+
+      let headerLength = isDitto || (nodeType != '#') ? level + 1 : level;
       let name = line.slice(headerLength).trim();
       const node = { level, name, content: [], kids: [], nodeType };
       if (isDitto && trust > 0 && lastValidNodes[level]) {
@@ -392,7 +393,7 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       current = node;
 
       if (!isDitto
-          && (nodeType === 'NORMAL' || nodeType === 'TEMPLATE')) {
+          && (nodeType === '#' || nodeType === '=')) {
         lastValidNodes[level] = node;
       }
       break;
