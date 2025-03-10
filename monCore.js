@@ -34,7 +34,7 @@ function tokenize(input) {
       }
     }
     if (!matched) {
-      throw new Error(`Unexpected character at ${pos}: ${input[pos]}`);
+      throw new Error(`Bad character at ${pos}: ${input[pos]}`);
     }
   }
   return tokens;
@@ -61,14 +61,6 @@ class MONParser {
     throw new Error(`Expected ${type}, got ${token.type} at ${token.pos}`);
   }
 
-  option(type) {
-    if (this.peek() === type) {
-      this.pos++;
-      return true;
-    }
-    return false;
-  }
-
   section() {
     const result = {};
     const items = [];
@@ -80,13 +72,12 @@ class MONParser {
         const kv = this.keyValue();
         Object.assign(result, kv);
       } else if (next === '-' || next === ',') {
-        const isDash = next === '-';
-        this.eat(isDash ? '-' : ',');
+        this.pos++;
         
         const nextType = this.peek();
         let value = nextType === '"ID' || nextType === 'ID' ? this.KVSet() : this.value();
 
-        if (isDash) {
+        if (next === '-') {
           if (currentSubArray) {
             items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
           }
@@ -120,11 +111,12 @@ class MONParser {
     return { [key]: this.value() };
   }
 
-  bracketArray() {
+  bracket() {
     const items = [];
     if (this.peek() !== ']') {
       items.push(this.value());
-      while (this.option(',')) {
+      while (this.peek() === ',') {
+        this.pos++;
         items.push(this.value());
       }
     }
@@ -141,9 +133,9 @@ class MONParser {
       case 'T': return true;
       case 'F': return false;
       case 'Null': return null;
-      case '[': return this.bracketArray();
+      case '[': return this.bracket();
       default:
-        throw new Error(`Unexpected token: ${token.type} at ${token.pos}`);
+        throw new Error(`Bad token: ${token.type} at ${token.pos}`);
     }
   }
 
