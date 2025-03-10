@@ -66,8 +66,9 @@ class MONParser {
     const items = [];
     let currentSubArray = null;
 
-    while (this.peek() !== 'EOF') {
+    while (true) {
       const next = this.peek();
+      if (next === 'EOF') break;
       if (next === '"ID' || next === 'ID') {
         const kv = this.keyValue();
         Object.assign(result, kv);
