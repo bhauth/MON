@@ -42,7 +42,7 @@ A simple web demo is [here](https://bhauth.com/files/dev/mon/).
 - [download mon.js here](https://github.com/bhauth/MON/releases)
 - node mon.js \[one or more mon/json files\]
 
-That produces .json files from .mon ones, and .mon files from .json ones. Conversion of complex JSON to MON is currently limited.
+That produces .json files from .mon ones, and .mon files from .json ones. It should accept arbitrary .json files.
 
 Sets of files can be combined as follows:
 
