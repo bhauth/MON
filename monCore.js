@@ -70,8 +70,7 @@ class MONParser {
       const next = this.peek();
       if (next === 'EOF') break;
       if (next[0] === 'I') { // ID or ID"
-        const kv = this.keyValue();
-        Object.assign(result, kv);
+        this.keyValue(result);
       } else if (next === '-' || next === ',') {
         this.pos++;
         
@@ -100,16 +99,16 @@ class MONParser {
       items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
     }
 
-    return items.length > 0 ? items : result;
+    return items.length ? items : result;
 }
 
-  keyValue() {
+  keyValue(result) {
     let noQuote = this.peek() === 'ID';
     let key = noQuote ?
       this.eat('ID').value :
       this.eat('ID"').value.slice(1, -1);
     this.eat('=');
-    return { [key]: this.value() };
+    result[key] = this.value();
   }
 
   bracket() {
@@ -143,7 +142,7 @@ class MONParser {
   KVSet() {
     const result = {};
     do {
-      Object.assign(result, this.keyValue());
+      this.keyValue(result);
     } while (this.peek()[0] === 'I'); // ID or ID"
     return result;
   }
@@ -393,9 +392,7 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
 
     case '/':
       if (line.startsWith('//')) continue;
-      current.content.push(line);
-      break;
-
+      // fallthru
     default:
       current.content.push(line);
       break;
