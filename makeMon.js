@@ -17,42 +17,65 @@ function sectionToMON(key, value, level, lines, indent) {
 
   if (typeof value === "string" && value.includes("\n")) {
     lines.push(`${header}" ${key}`);
-    value.split("\n").forEach(line => {
-      const trimmed = line.trim();
-      if (trimmed.startsWith("#")) {
-        const hashes = trimmed.match(/^#+/)[0].length;
-        lines.push("#".repeat(hashes + level + 1) + trimmed.slice(hashes));
-      } else if (trimmed) lines.push(line);
+    let values = value.split("\n");
+    values.pop();
+    values.forEach(line => {
+      if (line.startsWith("#")) {
+        const hashes = line.match(/^#+/)[0].length;
+        lines.push("#".repeat(hashes + level + 1) + line.slice(hashes));
+      } else lines.push(line);
     });
   } else if (Array.isArray(value)) {
-    const isSimpleArray = value.every(v => typeof v !== "object" || v === null);
-    lines.push(isSimpleArray ? `${indent}${fmtKey} = ${formatValue(value)}` : `${header} ${key}`);
-    if (!isSimpleArray) {
-      let simpleSoFar = true;
-      value.forEach(item => {
-        if (typeof item === "object" && item && !Array.isArray(item)) {
-          const isComplex = Object.values(item).some(v => typeof v === "object" && v !== null);
-          if (isComplex) simpleSoFar = false;
-          lines.push(simpleSoFar ? "-" : `${header} ${key}.[]`);
-          for (const [k, v] of Object.entries(item)) {
-            sectionToMON(k, v, level + 1, lines, indent);
-          }
-        } else if (item !== null) {
-          lines.push(simpleSoFar ? `- ${formatValue(item)}` : `${header} ${key}.[]\n${indent}${formatValue(item)}`);
-        }
-      });
-    }
-  } else if (typeof value === "object" && value) {
+    lines.push(`${header} ${key}`);
+    processArray(value, level + 1, lines, indent);
+  } else if (typeof value === "object" && value !== null) {
     lines.push(`${header} ${key}`);
     for (const [k, v] of Object.entries(value)) {
-      sectionToMON(k, v, level + 1, lines, indent);
+      if (typeof v !== "object" || v === null) {
+        lines.push(`${"#".repeat(level + 2)} ${k}`);
+        lines.push(`${indent}${formatValue(v)}`);
+      } else if (isSimple(v)) {
+        lines.push(`${"#".repeat(level + 2)} ${k}`);
+        for (const [subK, subV] of Object.entries(v)) {
+          lines.push(`${indent}${fmtKey.replace(key, subK)} = ${formatValue(subV)}`);
+        }
+      } else {
+        sectionToMON(k, v, level + 1, lines, indent);
+      }
     }
   } else {
-    const isRoot = level === 0;
     const formatted = formatValue(value);
-    lines.push(isRoot ? `${header} ${key}` : `${indent}${fmtKey} = ${formatted}`);
-    if (isRoot) lines.push(`${indent}${formatted}`);
+    lines.push(`${header} ${key}`);
+    lines.push(`${indent}${formatted}`);
   }
+}
+
+function handleItem(item, level, lines, indent, index = 0) {
+  if (typeof item !== "object" || item === null) {
+    lines.push(`${indent}- ${formatValue(item)}`);
+  } else if (isSimple(item)) {
+    lines.push(`${indent}-`);
+    for (const [k, v] of Object.entries(item)) {
+      const fmtKey = `'${k}'`;
+      lines.push(`${indent.repeat(2)}${fmtKey} = ${formatValue(v)}`);
+    }
+  } else if (Array.isArray(item)) {
+    lines.push(`${"#".repeat(level + 1)} ${index}`);
+    processArray(item, level + 1, lines, indent);
+  } else {
+    for (const [k, v] of Object.entries(item)) {
+      sectionToMON(k, v, level, lines, indent);
+    }
+  }
+}
+
+function processArray(array, level, lines, indent) {
+  array.forEach((item, index) => handleItem(item, level, lines, indent, index));
+}
+
+function isSimple(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) &&
+    Object.values(value).every(v => typeof v !== "object" || v === null);
 }
 
 function formatValue(value) {
