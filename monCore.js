@@ -6,7 +6,7 @@ const PATTERNS = [
   { type: '[', pat: /\[/y },
   { type: ']', pat: /]/y },
   { type: '=', pat: /=/y },
-  { type: '"ID', pat: /'[^']*'/y },
+  { type: 'ID"', pat: /'[^']*'/y },
   { type: 'T', pat: /\btrue\b/y },
   { type: 'F', pat: /\bfalse\b/y },
   { type: 'Null', pat: /\bnull\b/y },
@@ -69,14 +69,14 @@ class MONParser {
     while (true) {
       const next = this.peek();
       if (next === 'EOF') break;
-      if (next === '"ID' || next === 'ID') {
+      if (next[0] === 'I') { // ID or ID"
         const kv = this.keyValue();
         Object.assign(result, kv);
       } else if (next === '-' || next === ',') {
         this.pos++;
         
         const nextType = this.peek();
-        let value = nextType === '"ID' || nextType === 'ID' ? this.KVSet() : this.value();
+        let value = nextType[0] === 'I' ? this.KVSet() : this.value();
 
         if (next === '-') {
           if (currentSubArray) {
@@ -107,7 +107,7 @@ class MONParser {
     let noQuote = this.peek() === 'ID';
     let key = noQuote ?
       this.eat('ID').value :
-      this.eat('"ID').value.slice(1, -1);
+      this.eat('ID"').value.slice(1, -1);
     this.eat('=');
     return { [key]: this.value() };
   }
@@ -144,7 +144,7 @@ class MONParser {
     const result = {};
     do {
       Object.assign(result, this.keyValue());
-    } while (this.peek() === '"ID' || this.peek() === 'ID');
+    } while (this.peek()[0] === 'I'); // ID or ID"
     return result;
   }
 }
