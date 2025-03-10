@@ -1,16 +1,16 @@
 const PATTERNS = [
   { type: 'WS', pat: /\s+/y, skip: true },
-  { type: 'NumLit', pat: /-?(\d*\.\d+|\d+\.?\d*)/y },
+  { type: 'NUM', pat: /-?(\d*\.\d+|\d+\.?\d*)/y },
   { type: '-', pat: /-/y },
   { type: ',', pat: /,/y },
   { type: '[', pat: /\[/y },
   { type: ']', pat: /]/y },
   { type: '=', pat: /=/y },
-  { type: 'QuoteID', pat: /'[^']*'/y },
+  { type: '"ID', pat: /'[^']*'/y },
   { type: 'T', pat: /\btrue\b/y },
   { type: 'F', pat: /\bfalse\b/y },
   { type: 'Null', pat: /\bnull\b/y },
-  { type: 'StringLit', pat: /"[^"]*"/y },
+  { type: 'STR', pat: /"[^"]*"/y },
   { type: 'ID', pat: /[a-zA-Z_]\w*/y },
 ];
 
@@ -34,7 +34,7 @@ function tokenize(input) {
       }
     }
     if (!matched) {
-      throw new Error(`Unexpected character at position ${pos}: ${input[pos]}`);
+      throw new Error(`Unexpected character at ${pos}: ${input[pos]}`);
     }
   }
   return tokens;
@@ -58,7 +58,7 @@ class MONParser {
       this.pos++;
       return token;
     }
-    throw new Error(`Expected ${type}, got ${token.type} at position ${token.pos}`);
+    throw new Error(`Expected ${type}, got ${token.type} at ${token.pos}`);
   }
 
   option(type) {
@@ -76,7 +76,7 @@ class MONParser {
 
     while (this.peek() !== 'EOF') {
       const next = this.peek();
-      if (next === 'QuoteID' || next === 'ID') {
+      if (next === '"ID' || next === 'ID') {
         const kv = this.keyValue();
         Object.assign(result, kv);
       } else if (next === '-' || next === ',') {
@@ -84,7 +84,7 @@ class MONParser {
         this.eat(isDash ? '-' : ',');
         
         const nextType = this.peek();
-        let value = nextType === 'QuoteID' || nextType === 'ID' ? this.KVSet() : this.value();
+        let value = nextType === '"ID' || nextType === 'ID' ? this.KVSet() : this.value();
 
         if (isDash) {
           if (currentSubArray) {
@@ -112,15 +112,12 @@ class MONParser {
 }
 
   keyValue() {
-    const keyToken = this.peek() === 'QuoteID'
-      ? this.eat('QuoteID')
-      : this.eat('ID');
-    const key = keyToken.type === 'QuoteID'
-      ? keyToken.value.slice(1, -1)
-      : keyToken.value;
+    let noQuote = this.peek() === 'ID';
+    let key = noQuote ?
+      this.eat('ID').value :
+      this.eat('"ID').value.slice(1, -1);
     this.eat('=');
-    const value = this.value();
-    return { [key]: value };
+    return { [key]: this.value() };
   }
 
   bracketArray() {
@@ -139,14 +136,14 @@ class MONParser {
     const token = this.tokens[this.pos] || EOF;
     this.pos++;
     switch (token.type) {
-      case 'StringLit': return token.value.slice(1, -1);
-      case 'NumLit': return parseFloat(token.value);
+      case 'STR': return token.value.slice(1, -1);
+      case 'NUM': return parseFloat(token.value);
       case 'T': return true;
       case 'F': return false;
       case 'Null': return null;
       case '[': return this.bracketArray();
       default:
-        throw new Error(`Unexpected token: ${token.type} at position ${token.pos}`);
+        throw new Error(`Unexpected token: ${token.type} at ${token.pos}`);
     }
   }
 
@@ -154,7 +151,7 @@ class MONParser {
     const result = {};
     do {
       Object.assign(result, this.keyValue());
-    } while (this.peek() === 'QuoteID' || this.peek() === 'ID');
+    } while (this.peek() === '"ID' || this.peek() === 'ID');
     return result;
   }
 }
@@ -201,7 +198,7 @@ function parseSection(node, trust, root = null, groot = null,
     case '=':
       continue;
 
-    case 'TEXT':
+    case '"':
       childData = child.content.join('\n');
       break;
 
@@ -365,7 +362,7 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       
       switch (nodeType) {
       case '/': commentLevel = level; continue;
-      case '"': textLevel = level; nodeType = 'TEXT'; break;
+      case '"': textLevel = level; break;
       case '=': 
       case ';': 
       case ':': break;
