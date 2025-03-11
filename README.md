@@ -19,7 +19,7 @@ You want to store and edit a lot of structured information for a program. For ex
 
 ### config files
 
-You have a program using Javascript, perhaps a web app, and want users to be able to read and edit a complex config file. You can parse a MON config file using a 6kb standalone javascript file, and it parses quickly.
+You have a program using Javascript, perhaps a web app, and want users to be able to read and edit a complex config file. You can parse a MON config file using a 5kb standalone javascript file, and it parses quickly.
 
 ### data validation
 
