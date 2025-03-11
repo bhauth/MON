@@ -74,8 +74,15 @@ class MONParser {
       } else if (next === '-' || next === ',') {
         this.pos++;
         
-        const nextType = this.peek();
-        let value = nextType[0] === 'I' ? this.KVSet() : this.value();
+        let value;
+        if (this.peek()[0] === 'I') { // ID or ID"
+          value = {};
+          do {
+            this.keyValue(value);
+          } while (this.peek()[0] === 'I'); 
+        } else {
+          value = this.value();
+        }
 
         if (next === '-') {
           if (currentSubArray) {
@@ -138,23 +145,9 @@ class MONParser {
         throw new Error(`Bad token: ${token.type} at ${token.pos}`);
     }
   }
-
-  KVSet() {
-    const result = {};
-    do {
-      this.keyValue(result);
-    } while (this.peek()[0] === 'I'); // ID or ID"
-    return result;
-  }
 }
 
 const parser = new MONParser([]);
-
-function parseItem(sectionText) {
-  parser.tokens = tokenize(sectionText);
-  parser.pos = 0; // Reset position
-  return parser.section();
-}
 
 let digits = /^\d+$|^\[\]$/;
 
@@ -163,8 +156,10 @@ function parseSection(node, trust, root = null, groot = null,
   let obj = {};
   
   if (!inTag) try {
-    if (node.content.length) {
-      obj = parseItem(node.content.join('\n'));
+    if (node.content.length) { // parse item
+      parser.tokens = tokenize(node.content.join('\n'));
+      parser.pos = 0; 
+      obj = parser.section();
     }
   } catch (err) {
     throw new Error(`\nParser error in section "${node.name}":\n${err.message}`)
