@@ -1,17 +1,17 @@
 const PATTERNS = [
-  { type: 'WS', pat: /\s+/y, skip: true },
-  { type: 'NUM', pat: /-?(\d*\.\d+|\d+\.?\d*)/y },
-  { type: '-', pat: /-/y },
-  { type: ',', pat: /,/y },
-  { type: '[', pat: /\[/y },
-  { type: ']', pat: /]/y },
-  { type: '=', pat: /=/y },
-  { type: 'ID"', pat: /'[^']*'/y },
-  { type: 'T', pat: /\btrue\b/y },
-  { type: 'F', pat: /\bfalse\b/y },
-  { type: 'Null', pat: /\bnull\b/y },
-  { type: 'STR', pat: /"[^"]*"/y },
-  { type: 'ID', pat: /[a-zA-Z_]\w*/y },
+  { t: 'WS', pat: /\s+/y, skip: true },
+  { t: 'NUM', pat: /-?(\d*\.\d+|\d+\.?\d*)/y },
+  { t: '-', pat: /-/y },
+  { t: ',', pat: /,/y },
+  { t: '[', pat: /\[/y },
+  { t: ']', pat: /]/y },
+  { t: '=', pat: /=/y },
+  { t: 'ID"', pat: /'[^']*'/y },
+  { t: 'T', pat: /\btrue\b/y },
+  { t: 'F', pat: /\bfalse\b/y },
+  { t: 'Null', pat: /\bnull\b/y },
+  { t: 'STR', pat: /"[^"]*"/y },
+  { t: 'ID', pat: /[a-zA-Z_]\w*/y },
 ];
 
 function tokenize(input) {
@@ -20,13 +20,13 @@ function tokenize(input) {
 
   while (pos < input.length) {
     let matched = false;
-    for (const { type, pat, skip } of PATTERNS) {
+    for (const { t, pat, skip } of PATTERNS) {
       pat.lastIndex = pos;
       const match = pat.exec(input);
 
       if (match) {
         if (!skip) {
-          tokens.push({ type, value: match[0], pos });
+          tokens.push({ t, value: match[0], pos });
         }
         pos += match[0].length;
         matched = true;
@@ -40,7 +40,7 @@ function tokenize(input) {
   return tokens;
 }
 
-let END = { type: 'END' };
+let END = { t: 'END' };
 
 class MONParser {
   constructor(tokens) {
@@ -49,16 +49,16 @@ class MONParser {
   }
 
   peek() {
-    return this.tokens[this.pos]?.type || 'END';
+    return this.tokens[this.pos]?.t || 'END';
   }
   
   eat(type) {
     const token = this.tokens[this.pos] || END;
-    if (token.type === type) {
+    if (token.t === type) {
       this.pos++;
       return token;
     }
-    throw new Error(`Expected ${type}, got ${token.type} at ${token.pos}`);
+    throw new Error(`Expected ${type}, got ${token.t} at ${token.pos}`);
   }
 
   section() {
@@ -135,7 +135,7 @@ class MONParser {
   value() {
     const token = this.tokens[this.pos] || END;
     this.pos++;
-    switch (token.type) {
+    switch (token.t) {
       case 'STR': return token.value.slice(1, -1);
       case 'NUM': return parseFloat(token.value);
       case 'T': return true;
@@ -143,7 +143,7 @@ class MONParser {
       case 'Null': return null;
       case '[': return this.bracket();
       default:
-        throw new Error(`Bad token: ${token.type} at ${token.pos}`);
+        throw new Error(`Bad token: ${token.t} at ${token.pos}`);
     }
   }
 }
