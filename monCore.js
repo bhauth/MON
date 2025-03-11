@@ -156,8 +156,8 @@ function parseSection(node, trust, root = null, groot = null,
   let obj = {};
   
   if (!inTag) try {
-    if (node.content.length) { // parse item
-      parser.tokens = tokenize(node.content.join('\n'));
+    if (node.lines.length) { // parse item
+      parser.tokens = tokenize(node.lines.join('\n'));
       parser.pos = 0; 
       obj = parser.section();
     }
@@ -186,7 +186,7 @@ function parseSection(node, trust, root = null, groot = null,
       continue;
 
     case '"':
-      childData = child.content.join('\n');
+      childData = child.lines.join('\n');
       break;
 
     case ';': {
@@ -195,7 +195,7 @@ function parseSection(node, trust, root = null, groot = null,
         continue;
       }
 
-      const code = child.content.join('\n');
+      const code = child.lines.join('\n');
       try {
         const fn = new Function('root', trust >= 3 ? 'groot' : '', code);
         const result = fn.call(obj, root, trust >= 3 ? groot : undefined);
@@ -212,7 +212,7 @@ function parseSection(node, trust, root = null, groot = null,
         continue;
       }
       let fn = null;
-      const code = child.content.join('\n');
+      const code = child.lines.join('\n');
       try {
         fn = new Function('root', code);
       } catch (error) {
@@ -318,7 +318,7 @@ function countLeadingHashes(line) {
 
 export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {}, subTags = {}) {
   const lines = text.split('\n');
-  let stack = [{ level: 0, name: '', content: [], kids: [] }];
+  let stack = [{ level: 0, name: '', lines: [], kids: [] }];
   let current = stack[0];
   let lastValidNodes = [];
 
@@ -340,7 +340,7 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       const level = countLeadingHashes(line);
       
       if (textLevel && level > textLevel) {
-        current.content.push(line.slice(textLevel).trim());
+        current.lines.push(line.slice(textLevel).trim());
         continue;
       }
       
@@ -369,9 +369,9 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
 
       let headerLength = isDitto || (nodeType != '#') ? level + 1 : level;
       let name = line.slice(headerLength).trim();
-      const node = { level, name, content: [], kids: [], nodeType };
+      const node = { level, name, lines: [], kids: [], nodeType };
       if (isDitto && trust > 0 && lastValidNodes[level]) {
-        node.content = [...lastValidNodes[level].content];
+        node.lines = [...lastValidNodes[level].lines];
         node.kids = [...lastValidNodes[level].kids];
       }
 
@@ -389,7 +389,7 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       if (line.startsWith('//')) continue;
       // fallthru
     default:
-      current.content.push(line);
+      current.lines.push(line);
       break;
     }
   }
