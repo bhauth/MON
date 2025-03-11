@@ -40,7 +40,7 @@ function tokenize(input) {
   return tokens;
 }
 
-let EOF = { type: 'EOF' };
+let END = { type: 'END' };
 
 class MONParser {
   constructor(tokens) {
@@ -49,11 +49,11 @@ class MONParser {
   }
 
   peek() {
-    return this.tokens[this.pos]?.type || 'EOF';
+    return this.tokens[this.pos]?.type || 'END';
   }
-
+  
   eat(type) {
-    const token = this.tokens[this.pos] || EOF;
+    const token = this.tokens[this.pos] || END;
     if (token.type === type) {
       this.pos++;
       return token;
@@ -68,7 +68,7 @@ class MONParser {
 
     while (true) {
       const next = this.peek();
-      if (next === 'EOF') break;
+      if (next === 'END') break;
       if (next[0] === 'I') { // ID or ID"
         this.keyValue(result);
       } else if (next === '-' || next === ',') {
@@ -98,6 +98,7 @@ class MONParser {
         }
       } else {
         const value = this.value();
+        this.eat('END');
         return value;
       }
     }
@@ -132,7 +133,7 @@ class MONParser {
   }
 
   value() {
-    const token = this.tokens[this.pos] || EOF;
+    const token = this.tokens[this.pos] || END;
     this.pos++;
     switch (token.type) {
       case 'STR': return token.value.slice(1, -1);
