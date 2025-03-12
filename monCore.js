@@ -11,7 +11,7 @@ const PATTERNS = [
   { t: 'F', pat: /\bfalse\b/y },
   { t: 'Null', pat: /\bnull\b/y },
   { t: 'STR', pat: /"[^"]*"/y },
-  { t: 'ID', pat: /[a-zA-Z_]\w*/y },
+  { t: 'ID', pat: /[a-zA-Z_][^=\s]*/y },
 ];
 
 function tokenize(input) {
