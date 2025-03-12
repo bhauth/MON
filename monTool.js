@@ -43,11 +43,11 @@ async function processFiles(fileArg) {
   const baseName = path.basename(lastFile, ext);
   
   // allow a nonexistent last file to specify destination
-  const lastFileExists = await fs.access(lastFile)
-    .then(() => true)
-    .catch(err => err.code === 'ENOENT' ? false : Promise.reject(err));
-  if (fileSpecs.length > 1 && !lastFileExists) {
-    fileSpecs.pop();
+  if (fileSpecs.length > 1) {
+    const lastFileExists = await fs.access(lastFile)
+      .then(() => true)
+      .catch(err => err.code === 'ENOENT' ? false : Promise.reject(err));
+    if (!lastFileExists) { fileSpecs.pop(); }
   }
 
   const allMon = fileSpecs.every(([file]) => path.extname(file).toLowerCase() === '.mon');
