@@ -8,6 +8,7 @@ const sharedPlugins = [
   esbuild({
     minify: true,
     target: 'esnext',
+    mangleProps: /^_/,
   }),
 ];
 

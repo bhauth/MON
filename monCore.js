@@ -1,17 +1,17 @@
 const PATTERNS = [
-  { t: 'WS', pat: /\s+/y, skip: true },
-  { t: 'NUM', pat: /-?(\d*\.\d+|\d+\.?\d*)/y },
-  { t: '-', pat: /-/y },
-  { t: ',', pat: /,/y },
-  { t: '[', pat: /\[/y },
-  { t: ']', pat: /]/y },
-  { t: '=', pat: /=/y },
-  { t: 'ID"', pat: /'[^']*'/y },
-  { t: 'T', pat: /\btrue\b/y },
-  { t: 'F', pat: /\bfalse\b/y },
-  { t: 'Null', pat: /\bnull\b/y },
-  { t: 'STR', pat: /"[^"]*"/y },
-  { t: 'ID', pat: /[a-zA-Z_][^=\s]*/y },
+  { t: 'WS', _pattern: /\s+/y, skip: true },
+  { t: 'NUM', _pattern: /-?(\d*\.\d+|\d+\.?\d*)/y },
+  { t: '-', _pattern: /-/y },
+  { t: ',', _pattern: /,/y },
+  { t: '[', _pattern: /\[/y },
+  { t: ']', _pattern: /]/y },
+  { t: '=', _pattern: /=/y },
+  { t: 'ID"', _pattern: /'[^']*'/y },
+  { t: 'T', _pattern: /\btrue\b/y },
+  { t: 'F', _pattern: /\bfalse\b/y },
+  { t: 'Null', _pattern: /\bnull\b/y },
+  { t: 'STR', _pattern: /"[^"]*"/y },
+  { t: 'ID', _pattern: /[a-zA-Z_][^=\s]*/y },
 ];
 
 function tokenize(input) {
@@ -20,13 +20,13 @@ function tokenize(input) {
 
   while (pos < input.length) {
     let matched = false;
-    for (const { t, pat, skip } of PATTERNS) {
-      pat.lastIndex = pos;
-      const match = pat.exec(input);
+    for (const { t, _pattern, skip } of PATTERNS) {
+      _pattern.lastIndex = pos;
+      const match = _pattern.exec(input);
 
       if (match) {
         if (!skip) {
-          tokens.push({ t, value: match[0], pos });
+          tokens.push({ t, _value: match[0], pos });
         }
         pos += match[0].length;
         matched = true;
@@ -44,16 +44,16 @@ let END = { t: 'END' };
 
 class MONParser {
   constructor(tokens) {
-    this.tokens = tokens;
+    this._tokens = tokens;
     this.pos = 0;
   }
 
-  peek() {
-    return this.tokens[this.pos]?.t || 'END';
+  _peek() {
+    return this._tokens[this.pos]?.t || 'END';
   }
   
-  eat(type) {
-    const token = this.tokens[this.pos] || END;
+  _eat(type) {
+    const token = this._tokens[this.pos] || END;
     if (token.t === type) {
       this.pos++;
       return token;
@@ -67,21 +67,21 @@ class MONParser {
     let currentSubArray = null;
 
     while (true) {
-      const next = this.peek();
+      const next = this._peek();
       if (next === 'END') break;
       if (next[0] === 'I') { // ID or ID"
-        this.keyValue(result);
+        this._keyValue(result);
       } else if (next === '-' || next === ',') {
         this.pos++;
         
         let value;
-        if (this.peek()[0] === 'I') { // ID or ID"
+        if (this._peek()[0] === 'I') { // ID or ID"
           value = {};
           do {
-            this.keyValue(value);
-          } while (this.peek()[0] === 'I'); 
+            this._keyValue(value);
+          } while (this._peek()[0] === 'I'); 
         } else {
-          value = this.value();
+          value = this._value();
         }
 
         if (next === '-') {
@@ -97,8 +97,8 @@ class MONParser {
           }
         }
       } else {
-        const value = this.value();
-        this.eat('END');
+        const value = this._value();
+        this._eat('END');
         return value;
       }
     }
@@ -110,38 +110,38 @@ class MONParser {
     return items.length ? items : result;
 }
 
-  keyValue(result) {
-    let noQuote = this.peek() === 'ID';
+  _keyValue(result) {
+    let noQuote = this._peek() === 'ID';
     let key = noQuote ?
-      this.eat('ID').value :
-      this.eat('ID"').value.slice(1, -1);
-    this.eat('=');
-    result[key] = this.value();
+      this._eat('ID')._value :
+      this._eat('ID"')._value.slice(1, -1);
+    this._eat('=');
+    result[key] = this._value();
   }
 
-  bracket() {
+  _bracket() {
     const items = [];
-    if (this.peek() !== ']') {
-      items.push(this.value());
-      while (this.peek() === ',') {
+    if (this._peek() !== ']') {
+      items.push(this._value());
+      while (this._peek() === ',') {
         this.pos++;
-        items.push(this.value());
+        items.push(this._value());
       }
     }
-    this.eat(']');
+    this._eat(']');
     return items;
   }
 
-  value() {
-    const token = this.tokens[this.pos] || END;
+  _value() {
+    const token = this._tokens[this.pos] || END;
     this.pos++;
     switch (token.t) {
-      case 'STR': return token.value.slice(1, -1);
-      case 'NUM': return parseFloat(token.value);
+      case 'STR': return token._value.slice(1, -1);
+      case 'NUM': return parseFloat(token._value);
       case 'T': return true;
       case 'F': return false;
       case 'Null': return null;
-      case '[': return this.bracket();
+      case '[': return this._bracket();
       default:
         throw new Error(`Bad token: ${token.t} at ${token.pos}`);
     }
@@ -158,7 +158,7 @@ function parseSection(node, trust, root = null, groot = null,
   
   if (!inTag) try {
     if (node.lines.length) { // parse item
-      parser.tokens = tokenize(node.lines.join('\n'));
+      parser._tokens = tokenize(node.lines.join('\n'));
       parser.pos = 0; 
       obj = parser.section();
     }
@@ -176,8 +176,8 @@ function parseSection(node, trust, root = null, groot = null,
     if (!inTag) {
       for (let tag of tags) {
         let sts = subTags[tag];
-        if (sts && sts[cname]) { ctags = ctags.concat(sts[cname]); }
-        if (sts && sts[' ']) { ctags = ctags.concat(sts[' ']); }
+        if (sts && sts[cname]) { ctags.push(...sts[cname]); }
+        if (sts && sts[' ']) { ctags.push(...sts[' ']); }
       }
     }
     
@@ -233,13 +233,13 @@ function parseSection(node, trust, root = null, groot = null,
         let parent = subTags[pLabel];
         let cLabel = cname === '*' ? ' ' : cname;
         parent[cLabel] ??= [];
-        parent[cLabel] = parent[cLabel].concat(ctags);
+        parent[cLabel].push(...ctags);
         if (cLabel.endsWith(".[]")) {
           const arrayTags = ctags.map(tag => " " + tag);
           let sliced = cLabel.slice(0,-3);
           if (sliced === '*') { sliced = ' '; }
           parent[sliced] ??= [];
-          parent[sliced] = parent[sliced].concat(arrayTags);
+          parent[sliced].push(...arrayTags);
         }
       }
       childData = parseSection(child, trust, root || obj, groot, ctags, tagCode, subTags, inTag);
