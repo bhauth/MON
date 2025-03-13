@@ -224,22 +224,21 @@ function parseSection(node, trust, root = null, groot = null,
       continue;
     }
     
-    case '#':
+//    case '#':
     default:
       if (inTag) {
         let [pname, ptags] = node.name.split(' : ');
         let pLabel = (node.nodeType === ':') ? pname : ptags;
-        if (!subTags[pLabel]) { subTags[pLabel] = []; };
+        subTags[pLabel] ??= [];
         let parent = subTags[pLabel];
-        let cLabel = cname;
-        if (cLabel === '*') { cLabel = ' '; }
-        if (!parent[cLabel]) { parent[cLabel] = []; }
+        let cLabel = cname === '*' ? ' ' : cname;
+        parent[cLabel] ??= [];
         parent[cLabel] = parent[cLabel].concat(ctags);
         if (cLabel.endsWith(".[]")) {
           const arrayTags = ctags.map(tag => " " + tag);
           let sliced = cLabel.slice(0,-3);
           if (sliced === '*') { sliced = ' '; }
-          if (!parent[sliced]) { parent[sliced] = []; }
+          parent[sliced] ??= [];
           parent[sliced] = parent[sliced].concat(arrayTags);
         }
       }
@@ -276,7 +275,7 @@ function parseSection(node, trust, root = null, groot = null,
 
     for (let i = 0; i < prefixes.length - 1; i++) {
       let prefix = handlePrefix(prefixes[i], destination);
-      if (!destination[prefix]) { destination[prefix] = {}; }
+      destination[prefix] ??= {};
       let next = prefixes[i + 1];
       if (digits.test(next) && !Array.isArray(destination[prefix])) {
         destination[prefix] = [];
@@ -372,8 +371,8 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       let name = line.slice(headerLength).trim();
       const node = { level, name, lines: [], kids: [], nodeType };
       if (isDitto && trust > 0 && lastValidNodes[level]) {
-        node.lines = [...lastValidNodes[level].lines];
-        node.kids = [...lastValidNodes[level].kids];
+        node.lines = lastValidNodes[level].lines;
+        node.kids = lastValidNodes[level].kids;
       }
 
       stack.push(node);
