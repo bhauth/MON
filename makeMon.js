@@ -1,5 +1,6 @@
-export function objToMon(json, options = { indentDepth: 2 }) {
-  const indent = " ".repeat(options.indentDepth || 0);
+export function objToMon(json, options) {
+  const indentLevel = options.indent || 2;
+  const indent = " ".repeat(indentLevel);
   const lines = [];
   let first = true;
 

@@ -62,10 +62,10 @@ async function processFiles(fileArg) {
     return outputFile;
   } else if (singleJson) {
     const outputFile = path.join(outputDir, `${baseName}.mon`);
-    const [filePath] = fileSpecs[0];
+    const [filePath, params = {}] = fileSpecs[0];
     const inputText = await fs.readFile(filePath, 'utf8');
     const jsonObj = JSON.parse(inputText);
-    const outputData = objToMon(jsonObj, { indentDepth: 2 });
+    const outputData = objToMon(jsonObj, params);
     await fs.writeFile(outputFile, outputData, 'utf8');
     console.log(`Converted JSON to MON: '${outputFile}'`);
     return outputFile;
