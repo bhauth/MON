@@ -21,18 +21,7 @@ export default [
       name: 'monCore',
       sourcemap: false,
     },
-    plugins: [
-      ...sharedPlugins,
-      {
-        name: 'expose-parseMON-web',
-        renderChunk(code) {
-          return {
-            code: `${code}\nwindow.parseMON = monCore.parseMON;`,
-            map: null,
-          };
-        },
-      },
-    ],
+    plugins: sharedPlugins,
   },
   {
     input: 'monTool.js',
