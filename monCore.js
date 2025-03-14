@@ -386,7 +386,7 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       break;
 
     case '/':
-      if (line.startsWith('//')) continue;
+      if (line[1] === '/') continue;
       // fallthru
     default:
       current.lines.push(line);
