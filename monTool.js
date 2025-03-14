@@ -50,7 +50,10 @@ async function processFiles(fileArg) {
     if (!lastFileExists) { fileSpecs.pop(); }
   }
 
-  const allMon = fileSpecs.every(([file]) => path.extname(file).toLowerCase() === '.mon');
+  const allMon = fileSpecs.every(([file]) => {
+    const ext = path.extname(file).toLowerCase();
+    return ext === '.mon' || ext === '.md';
+  });
   const singleJson = fileSpecs.length === 1 && path.extname(fileSpecs[0][0]).toLowerCase() === '.json';
 
   if (allMon) {
