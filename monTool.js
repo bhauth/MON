@@ -37,12 +37,13 @@ async function processFiles(fileArg) {
     return [filePath.trim(), params];
   });
 
-  const lastFile = fileSpecs[fileSpecs.length - 1][0];
+  const [lastFile, lastParams = {}] = fileSpecs[fileSpecs.length - 1];
   const outputDir = path.dirname(lastFile);
   const ext = path.extname(lastFile);
   const baseName = path.basename(lastFile, ext);
   
   // allow a nonexistent last file to specify destination
+  // set indent based on last file params
   if (fileSpecs.length > 1) {
     const lastFileExists = await fs.access(lastFile)
       .then(() => true)
@@ -59,7 +60,8 @@ async function processFiles(fileArg) {
   if (allMon) {
     const outputFile = path.join(outputDir, `${baseName}.json`);
     const combined = await loadMON(fileSpecs);
-    const outputData = JSON.stringify(combined, null, 2);
+    let indent = parseInt(lastParams.indent) || 2;
+    const outputData = JSON.stringify(combined, null, indent);
     await fs.writeFile(outputFile, outputData, 'utf8');
     console.log(`Converted ${fileSpecs.length > 1 ? 'MON files' : 'MON file'} to '${outputFile}'`);
     return outputFile;
