@@ -176,8 +176,8 @@ function parseSection(node, trust, root = null, groot = null,
     if (!inTag) {
       for (let tag of tags) {
         let sts = subTags[tag];
-        if (sts && sts[cname]) { ctags.push(...sts[cname]); }
-        if (sts && sts[' ']) { ctags.push(...sts[' ']); }
+        if (sts?.[cname]) { ctags.push(...sts[cname]); }
+        if (sts?.[' ']) { ctags.push(...sts[' ']); }
       }
     }
     
