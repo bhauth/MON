@@ -16,8 +16,6 @@ function isObject(value) {
   return typeof value === "object" && value !== null;
 }
 
-const hashPattern = /^#+/;
-
 function pushHeading(lines, header, key) {
   lines.push(`${header} ${key}${key.includes('.') ? '.' : ''}`);
 }
@@ -29,8 +27,7 @@ function sectionToMON(key, value, header, lines, indent) {
     values.pop();
     values.forEach(line => {
       if (line[0] === "#") {
-        const hashes = line.match(hashPattern)[0].length;
-        lines.push(`${header + "#".repeat(hashes)}${line.slice(hashes)}`);
+        lines.push(header + line);
       } else lines.push(line);
     });
   } else {
