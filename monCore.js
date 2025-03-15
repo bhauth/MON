@@ -157,8 +157,8 @@ function parseSection(node, trust, root = null, groot = null,
   let obj = {};
   
   if (!inTag) try {
-    if (node.lines.length) { // parse item
-      parser._tokens = tokenize(node.lines.join('\n'));
+    if (node._lines.length) { // parse item
+      parser._tokens = tokenize(node._lines.join('\n'));
       parser.pos = 0; 
       obj = parser.section();
     }
@@ -181,13 +181,13 @@ function parseSection(node, trust, root = null, groot = null,
       }
     }
     
-    switch (child.nodeType) {
+    switch (child._nodeType) {
     case '/':
     case '=':
       continue;
 
     case '"':
-      childData = child.lines.join('\n');
+      childData = child._lines.join('\n');
       break;
 
     case ';': {
@@ -196,7 +196,7 @@ function parseSection(node, trust, root = null, groot = null,
         continue;
       }
 
-      const code = child.lines.join('\n');
+      const code = child._lines.join('\n');
       try {
         const fn = new Function('root', trust >= 3 ? 'groot' : '', code);
         const result = fn.call(obj, root, trust >= 3 ? groot : undefined);
@@ -213,7 +213,7 @@ function parseSection(node, trust, root = null, groot = null,
         continue;
       }
       let fn = null;
-      const code = child.lines.join('\n');
+      const code = child._lines.join('\n');
       try {
         fn = new Function('root', code);
       } catch (error) {
@@ -228,7 +228,7 @@ function parseSection(node, trust, root = null, groot = null,
     default:
       if (inTag) {
         let [pname, ptags] = node.name.split(' : ');
-        let pLabel = (node.nodeType === ':') ? pname : ptags;
+        let pLabel = (node._nodeType === ':') ? pname : ptags;
         subTags[pLabel] ??= [];
         let parent = subTags[pLabel];
         let cLabel = cname === '*' ? ' ' : cname;
@@ -247,12 +247,10 @@ function parseSection(node, trust, root = null, groot = null,
     }
 
     if (childData === undefined || inTag) { continue; }
-    let prefixes = cname.split('.');
-
-    if (trust < 0) {
-      if (prefixes.length === 2 && prefixes[1] === '[]') {}
-      else { prefixes = cname ? [cname] : []; }
-    }
+    let prefixes =
+      trust < 0 ? [cname] : 
+      cname[cname.length - 1] === '.' ? [cname.slice(0, -1)] :
+      cname.split('.');
     
     if (!prefixes.length) {
       obj = childData;
@@ -264,7 +262,7 @@ function parseSection(node, trust, root = null, groot = null,
       if (prefix[0] === '[' && prefix.at(-1) === ']') {
         if (!Array.isArray(dest)) throw new Error(`Non-array at "${cname}"`);
         let key = prefix.slice(1, -1);
-        let i = dest.findIndex(item => item === key);
+        let i = dest.indexOf(key);
         return i >= 0 ? i : dest.length;
       }
       return prefix;
@@ -318,7 +316,7 @@ function countLeadingHashes(line) {
 
 export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {}, subTags = {}) {
   const lines = text.split('\n');
-  let stack = [{ level: 0, name: '', lines: [], kids: [] }];
+  let stack = [{ level: 0, name: '', _lines: [], kids: [] }];
   let current = stack[0];
   let lastValidNodes = [];
 
@@ -340,20 +338,20 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       const level = countLeadingHashes(line);
       
       if (textLevel && level > textLevel) {
-        current.lines.push(line.slice(textLevel).trim());
+        current._lines.push(line.slice(textLevel).trim());
         continue;
       }
       
-      let nodeType = line[level];
+      let _nodeType = line[level];
       textLevel = 0;
       
-      switch (nodeType) {
+      switch (_nodeType) {
       case '/': commentLevel = level; continue;
       case '"': textLevel = level; break;
       case '=': 
       case ';': 
       case ':': break;
-      default: nodeType = '#'; break;
+      default: _nodeType = '#'; break;
       }
 
       while (stack.length && stack[stack.length - 1].level >= level) {
@@ -362,16 +360,16 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       current = stack[stack.length - 1];
 
       let isDitto = false;
-      if (nodeType === '=' && current.kids.length !== 0) {
-        nodeType = '#';
+      if (_nodeType === '=' && current.kids.length !== 0) {
+        _nodeType = '#';
         isDitto = true;
       }
 
-      let headerLength = isDitto || (nodeType != '#') ? level + 1 : level;
+      let headerLength = isDitto || (_nodeType != '#') ? level + 1 : level;
       let name = line.slice(headerLength).trim();
-      const node = { level, name, lines: [], kids: [], nodeType };
+      const node = { level, name, _lines: [], kids: [], _nodeType };
       if (isDitto && trust > 0 && lastValidNodes[level]) {
-        node.lines = lastValidNodes[level].lines;
+        node._lines = lastValidNodes[level]._lines;
         node.kids = lastValidNodes[level].kids;
       }
 
@@ -380,7 +378,7 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       current = node;
 
       if (!isDitto
-          && (nodeType === '#' || nodeType === '=')) {
+          && (_nodeType === '#' || _nodeType === '=')) {
         lastValidNodes[level] = node;
       }
       break;
@@ -389,7 +387,7 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       if (line[1] === '/') continue;
       // fallthru
     default:
-      current.lines.push(line);
+      current._lines.push(line);
       break;
     }
   }
