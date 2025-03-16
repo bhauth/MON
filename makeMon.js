@@ -2,13 +2,8 @@ export function objToMon(json, options) {
   const indentLevel = options.indent || 2;
   const indent = " ".repeat(indentLevel);
   const lines = [];
-  let first = true;
-
-  for (const [key, value] of Object.entries(json || {})) {
-    if (first) first = false;
-    else lines.push("");
-    sectionToMON(key, value, '#', lines, indent);
-  }
+  
+  sectionToMON("", json || {}, '', lines, indent);
   return lines.join("\n");
 }
 
@@ -31,7 +26,10 @@ function sectionToMON(key, value, header, lines, indent) {
       } else lines.push(line);
     });
   } else {
-    pushHeading(lines, header, key);
+    if (header) {
+      if (header === '#' && lines.length) { lines.push(''); }
+      pushHeading(lines, header, key);
+      }
     if (Array.isArray(value)) {
       processArray(value, header + '#', lines, indent);
     } else if (isObject(value)) {
