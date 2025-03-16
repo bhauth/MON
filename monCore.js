@@ -1,42 +1,61 @@
-const PATTERNS = [
-  { t: 'WS', _pattern: /\s+/y, skip: true },
-  { t: 'NUM', _pattern: /-?(\d*\.\d+|\d+\.?\d*)/y },
-  { t: '-', _pattern: /-/y },
-  { t: ',', _pattern: /,/y },
-  { t: '[', _pattern: /\[/y },
-  { t: ']', _pattern: /]/y },
-  { t: '=', _pattern: /=/y },
-  { t: 'ID"', _pattern: /'[^']*'/y },
-  { t: 'T', _pattern: /\btrue\b/y },
-  { t: 'F', _pattern: /\bfalse\b/y },
-  { t: 'Null', _pattern: /\bnull\b/y },
-  { t: 'STR', _pattern: /"[^"]*"/y },
-  { t: 'ID', _pattern: /[a-zA-Z_][^=\s]*/y },
+const SINGLE_CHARS = {
+  '-': true,
+  ',': true,
+  '[': true,
+  ']': true,
+  '=': true,
+};
+
+const REGEX_PATTERNS = [
+  /\s+/y,               // 0: WS (skipped)
+  /-?(\d*\.\d+|\d+\.?\d*)/y,  // 1: NUM
+// single chars here
+  /'[^']*'/y,           // 2: ID"
+  /\btrue\b/y,          // 3: T
+  /\bfalse\b/y,         // 4: F
+  /\bnull\b/y,          // 5: Null
+  /"[^"]*"/y,           // 6: STR
+  /[a-zA-Z_][^=\s]*/y   // 7: ID
 ];
+
+const TOKEN_TYPES = ['WS', 'NUM', 'ID"', 'T', 'F', 'Null', 'STR', 'ID'];
 
 function tokenize(input) {
   const tokens = [];
   let pos = 0;
 
   while (pos < input.length) {
-    let matched = false;
-    for (const { t, _pattern, skip } of PATTERNS) {
-      _pattern.lastIndex = pos;
-      const match = _pattern.exec(input);
-
-      if (match) {
-        if (!skip) {
-          tokens.push({ t, _value: match[0], pos });
+    bb: {
+      let i = 0; let ending = 2;
+      while(true) {
+        while(i < ending) {
+          const pattern = REGEX_PATTERNS[i];
+          pattern.lastIndex = pos;
+          const match = pattern.exec(input);
+          if (match) {
+            if (i !== 0) { // Skip WS
+              tokens.push({ t: TOKEN_TYPES[i], _value: match[0], pos });
+            }
+            pos += match[0].length;
+            break bb;
+          }
+          i++;
         }
-        pos += match[0].length;
-        matched = true;
-        break;
+        ending = REGEX_PATTERNS.length;
+        if (i >= ending) {
+          throw new Error(`Bad character at ${pos}: ${input[pos]}`);
+        }
+        const c = input[pos];
+        const singleCharMatch = SINGLE_CHARS[c];
+        if (singleCharMatch) {
+          tokens.push({ t: c, _value: c, pos });
+          pos++;
+          break bb;
+        }
       }
     }
-    if (!matched) {
-      throw new Error(`Bad character at ${pos}: ${input[pos]}`);
-    }
   }
+
   return tokens;
 }
 
