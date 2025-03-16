@@ -8,7 +8,7 @@ const SINGLE_CHARS = {
 
 const REGEX_PATTERNS = [
   /\s+/y,               // 0: WS (skipped)
-  /-?(\d*\.\d+|\d+\.?\d*)/y,  // 1: NUM
+  /-?\d*\.?\d+/y,       // 1: NUM
 // single chars here
   /'[^']*'/y,           // 2: ID"
   /\btrue\b/y,          // 3: T
