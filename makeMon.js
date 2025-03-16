@@ -54,7 +54,7 @@ function sectionToMON(key, value, header, lines, indent) {
   }
 }
 
-function handleItem(item, header, lines, indent, index = 0) {
+function handleItem(item, header, lines, indent) {
   if (handleSimpleItem(item, indent, lines)) return;
   if (Array.isArray(item)) {
     processArray(item, header, lines, indent);
@@ -66,11 +66,11 @@ function handleItem(item, header, lines, indent, index = 0) {
 }
 
 function processArray(array, header, lines, indent) {
-  array.forEach((item, index) => {
-    if (handleSimpleItem(item, indent, lines)) return;
-    pushHeading(lines, header, index.toString());
+  for (let item of array) {
+    if (handleSimpleItem(item, indent, lines)) continue;
+    pushHeading(lines, header, '[]');
     handleItem(item, header + '#', lines, indent);
-  });
+  }
 }
 
 function handleSimpleItem(item, indent, lines) {
