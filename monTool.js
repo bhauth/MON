@@ -95,7 +95,7 @@ await Promise.all(args.map(async (arg) => {
     try {
       await processFiles(arg);
     } catch (err) {
-      console.error(`Error processing "${arg}": ${err.message}`);
+      console.error(`Error processing "${arg}"\n${err.message}`);
     }
   }));
 }

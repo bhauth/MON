@@ -43,7 +43,7 @@ function tokenize(input) {
         }
         ending = REGEX_PATTERNS.length;
         if (i >= ending) {
-          throw new Error(`Bad character at ${pos}: ${input[pos]}`);
+          throw Error(`\tBad character at ${pos}: ${input[pos]}`);
         }
         const c = input[pos];
         const singleCharMatch = SINGLE_CHARS[c];
@@ -77,7 +77,7 @@ class MONParser {
       this.pos++;
       return token;
     }
-    throw new Error(`Expected ${type}, got ${token.t} at ${token.pos}`);
+    throw Error(`\tExpected ${type}, got ${token.t} at ${token.pos}`);
   }
 
   section() {
@@ -162,7 +162,7 @@ class MONParser {
       case 'Null': return null;
       case '[': return this._bracket();
       default:
-        throw new Error(`Bad token: ${token.t} at ${token.pos}`);
+        throw Error(`\tBad token: ${token.t} at ${token.pos}`);
     }
   }
 }
@@ -175,6 +175,8 @@ function parseSection(node, trust, root = null, groot = null,
     tags = [], tagCode = {}, subTags = {}, inTag = false) {
   let obj = {};
   
+try {
+  
   if (!inTag) try {
     if (node._lines.length) { // parse item
       parser._tokens = tokenize(node._lines.join('\n'));
@@ -182,7 +184,7 @@ function parseSection(node, trust, root = null, groot = null,
       obj = parser.section();
     }
   } catch (err) {
-    throw new Error(`\nParser error in section "${node.name}":\n${err.message}`)
+    throw Error(`\n\tParser error:\n${err.message}`)
   }
   
   let childData = undefined;
@@ -221,7 +223,7 @@ function parseSection(node, trust, root = null, groot = null,
         const result = fn.call(obj, root, trust >= 3 ? groot : undefined);
         childData = result;
       } catch (error) {
-        console.error(`Error executing code in section "${cname}":`, error);
+        throw Error(`${cname}\n\tError running code:\n\t${error}`);
       }
       break;
     }
@@ -236,7 +238,7 @@ function parseSection(node, trust, root = null, groot = null,
       try {
         fn = new Function('root', code);
       } catch (error) {
-        console.error(`Error parsing code in section "${cname}":`, error);
+        throw Error(`${cname}\n\tError parsing code: ${error}`);
       }
       if (fn) { tagCode[cname] = fn; }
       parseSection(child, trust, root || obj, groot, ctags, tagCode, subTags, true);
@@ -279,7 +281,7 @@ function parseSection(node, trust, root = null, groot = null,
     const handlePrefix = (prefix, dest) => {
       if (prefix === '[]') return dest.length;
       if (prefix[0] === '[' && prefix.at(-1) === ']') {
-        if (!Array.isArray(dest)) throw new Error(`Non-array at "${cname}"`);
+        if (!Array.isArray(dest)) throw Error(`${cname}\n\tAttempted insertion in non-array`);
         let key = prefix.slice(1, -1);
         let i = dest.indexOf(key);
         return i >= 0 ? i : dest.length;
@@ -323,6 +325,10 @@ function parseSection(node, trust, root = null, groot = null,
     }
     else { fn.call(obj, root, groot); }
   }
+
+} catch (err) {
+  throw Error(`${node.name} -> ${err.message}`)
+}
 
   return obj;
 }
