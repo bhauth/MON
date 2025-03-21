@@ -228,7 +228,9 @@ Adding **/** to the end of a **#** header makes that section and all its subsect
 
 We can define a section, then later put data inside it that's deeply nested, as above. Header names are split by " **.** ".
 
-Nesting with headers can potentially escape schemas, so it's only allowed if **trust ≥ 0**.
+To use " **.** " in a header name, add a " **.** " to the end of it. When that's done, the header will not be split, and the ending " **.** " will be removed.
+
+Nesting with headers can potentially escape schemas, so it's only allowed if **trust ≥ 0**. (See below.)
 
 ### appending to arrays
 
@@ -299,6 +301,11 @@ Dashes produce arrays. Using commas after dashes produces nested sub-arrays.
 In Javascript, strings of numbers are converted to numeric array indices when used as keys. So, we can insert data at an array index.
 
 Using  **# zeta.\[put a 1 here\]**  searches the array zeta for for the string in [ ] brackets, and replaces that item. This can be used to label array elements you'll later replace.
+
+
+## optional advanced features
+
+The existence of the below options can be ignored if you don't want to use them.
 
 ### dittos and templates
 
@@ -479,6 +486,33 @@ If we want to apply a tag to every element of an array, we can do that by adding
         }
       ]
     }
+
+### bags
+
+Suppose you want to mark some items in a MON file for processing as a group by some function. That can be done with bags.
+
+	# bag_item
+    data = "stuff"
+    
+    ##> set_to_process
+    parameter = "settings"
+
+The above adds this element to a separate bags output:
+
+    {
+      "set_to_process": [
+        [
+          [
+            "bag_item"
+          ],
+          {
+            "parameter": "settings"
+          }
+        ]
+      ]
+    }
+
+Every item sent to the  **set_to_process**  bag is added to that array.
 
 
 ## file handling

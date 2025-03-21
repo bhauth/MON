@@ -119,3 +119,9 @@ x = 5
 x = 2
 ## cubes.[]
 x = 1
+
+# bag_item
+data = "stuff"
+
+##> set_to_process
+parameter = "settings"
