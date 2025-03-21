@@ -502,12 +502,8 @@ The above adds this element to a separate bags output:
     {
       "set_to_process": [
         [
-          [
-            "bag_item"
-          ],
-          {
-            "parameter": "settings"
-          }
+          [ "bag_item" ],
+          { "parameter": "settings" }
         ]
       ]
     }
