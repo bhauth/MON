@@ -4,7 +4,7 @@ import { parseMon } from './monCore.js';
 import { objToMon } from './makeMon.js';
 
 
-async function loadMon(fileSpecs) {
+async function loadMon(fileSpecs, bags = null) {
   let combined = {};
   let tagCode = {};
   let subTags = {};
@@ -61,11 +61,27 @@ async function processFiles(fileArg) {
 
   if (allMon) {
     const outputFile = path.join(outputDir, `${baseName}.json`);
-    const combined = await loadMon(fileSpecs);
+    
+    let bagsFile = lastParams.bags;
+    let bags = null;
+    if (bagsFile) {
+      bags = {};
+      bagsFile = path.join(outputDir, `${bagsFile}.json`);
+    }
+    
+    const combined = await loadMon(fileSpecs, bags);
     let indent = parseInt(lastParams.indent) || 2;
     const outputData = JSON.stringify(combined, null, indent);
+    
     await fs.writeFile(outputFile, outputData, 'utf8');
-    console.log(`Converted ${fileSpecs.length > 1 ? 'MON files' : 'MON file'} to '${outputFile}'`);
+    let bagNotice = '';
+    if (bagsFile) {
+      const bagText = JSON.stringify(bags, null, indent);
+      await fs.writeFile(bagsFile, bagText, 'utf8');
+      bagNotice = ` and '${bagsFile}'`;
+    }
+    
+    console.log(`Converted ${fileSpecs.length > 1 ? 'MON files' : 'MON file'} to '${outputFile}'${bagNotice}`);
     return outputFile;
   } else if (singleJson) {
     const outputFile = path.join(outputDir, `${baseName}.mon`);
@@ -84,12 +100,14 @@ async function processFiles(fileArg) {
 async function main() {
   const args = process.argv.slice(2);
   if (!args.length) {
-console.log(`Usage: node monTool.js "file1.mon" "file2.mon"
-  or: node monTool.js "schema.mon{params}data.mon{params}"
-  or: node monTool.js "input.json"
-Converts .mon file sets to .json files, or .json files to .mon
+console.log(`Converts .mon file sets to .json files, or .json files to .mon
+
+Usage: node monTool.js "file1.mon" "file2.mon{params}file3.mon{params}"
+  or: node monTool.js "input1.json" "input2.json"
+  
 Note: Filenames must not contain { or }
-Parameters: {trust=int tag=string}`);
+
+Parameters: {trust=int indent=int tag=string bags=filename}`);
     process.exit(1);
   }
 
