@@ -1,4 +1,4 @@
 node_modules/
 dist/
-demo/monCore.bundle.js
+demo/monReader.js
 test_data.json
