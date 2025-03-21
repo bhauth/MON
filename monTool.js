@@ -1,10 +1,10 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { parseMON } from './monCore.js';
+import { parseMon } from './monCore.js';
 import { objToMon } from './makeMon.js';
 
 
-async function loadMON(fileSpecs) {
+async function loadMon(fileSpecs) {
   let combined = {};
   let tagCode = {};
   let subTags = {};
@@ -16,7 +16,7 @@ async function loadMON(fileSpecs) {
     const baseName = path.basename(filePath, path.extname(filePath));
 
     let collections = {};  // todo: base on params, output to file if present ?
-    const data = parseMON(inputText, trust, collections, trust >= 3 ? combined : null, parentTags, tagCode, subTags);
+    const data = parseMon(inputText, trust, collections, trust >= 3 ? combined : null, parentTags, tagCode, subTags);
     console.log(JSON.stringify(collections, null, 2));
     if (fileSpecs.length > 1) {
       combined[baseName] = data;
@@ -61,7 +61,7 @@ async function processFiles(fileArg) {
 
   if (allMon) {
     const outputFile = path.join(outputDir, `${baseName}.json`);
-    const combined = await loadMON(fileSpecs);
+    const combined = await loadMon(fileSpecs);
     let indent = parseInt(lastParams.indent) || 2;
     const outputData = JSON.stringify(combined, null, indent);
     await fs.writeFile(outputFile, outputData, 'utf8');

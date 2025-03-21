@@ -61,7 +61,7 @@ function tokenize(input) {
 
 let END = { t: 'END' };
 
-class MONParser {
+class MonParser {
   constructor(tokens) {
     this._tokens = tokens;
     this.pos = 0;
@@ -167,7 +167,7 @@ class MONParser {
   }
 }
 
-const parser = new MONParser([]);
+const parser = new MonParser([]);
 
 let digits = /^\d+$|^\[\]$/;
 
@@ -344,7 +344,7 @@ function countLeadingHashes(line) {
   return count;
 }
 
-export function parseMON(text, trust = 1, collections = null, groot = null, tags = [], tagCode = {}, subTags = {}) {
+export function parseMon(text, trust = 1, collections = null, groot = null, tags = [], tagCode = {}, subTags = {}) {
   const lines = text.split('\n');
   let stack = [{ level: 0, _name: '', _lines: [], kids: [] }];
   let current = stack[0];

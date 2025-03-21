@@ -3,7 +3,7 @@ export function objToMon(json, options) {
   const indent = " ".repeat(indentLevel);
   const lines = [];
   
-  sectionToMON("", json || {}, '', lines, indent);
+  sectionToMon("", json || {}, '', lines, indent);
   return lines.join("\n");
 }
 
@@ -15,7 +15,7 @@ function pushHeading(lines, header, key) {
   lines.push(`${header} ${key}${key.includes('.') ? '.' : ''}`);
 }
 
-function sectionToMON(key, value, header, lines, indent) {
+function sectionToMon(key, value, header, lines, indent) {
   if (typeof value === "string" && value.includes("\n")) {
     pushHeading(lines, header + '"', key);
     let values = value.split("\n");
@@ -42,7 +42,7 @@ function sectionToMON(key, value, header, lines, indent) {
           pushHeading(lines, header, k);
           formatSimpleObject(v, indent, lines);
         } else {
-          sectionToMON(k, v, header, lines, indent);
+          sectionToMon(k, v, header, lines, indent);
         }
       }
     } else {
@@ -58,7 +58,7 @@ function handleItem(item, header, lines, indent) {
     processArray(item, header, lines, indent);
   } else {
     for (const [k, v] of Object.entries(item)) {
-      sectionToMON(k, v, header, lines, indent);
+      sectionToMon(k, v, header, lines, indent);
     }
   }
 }
