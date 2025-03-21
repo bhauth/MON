@@ -190,7 +190,7 @@ try {
   let childData = undefined;
   let space = /\s+/;
   for (const child of node.kids) {
-    let [cname, ctags] = child.name.split(' : ');
+    let [cname, ctags] = child._name.split(' : ');
     ctags = ctags ? ctags.trim().split(space) : [];
     cname = cname.trim();
     
@@ -249,7 +249,7 @@ try {
 //    case '>':
     default:
       if (inTag) {
-        let [pname, ptags] = node.name.split(' : ');
+        let [pname, ptags] = node._name.split(' : ');
         let pLabel = (node._nodeType === ':') ? pname : ptags;
         subTags[pLabel] ??= [];
         let parent = subTags[pLabel];
@@ -317,7 +317,7 @@ try {
     }
     let fn = tagCode[tag];
     if (!fn) { continue; }
-    if (arrayTag && !node.name.endsWith(".[]")) {
+    if (arrayTag && !node._name.endsWith(".[]")) {
       if (Array.isArray(obj)) {
         for (let o of obj) {
           fn.call(o, root, groot);
@@ -328,7 +328,7 @@ try {
   }
 
 } catch (err) {
-  throw Error(`${node.name} -> ${err.message}`)
+  throw Error(`${node._name} -> ${err.message}`)
 }
 
   if (node._collection) {
@@ -346,7 +346,7 @@ function countLeadingHashes(line) {
 
 export function parseMON(text, trust = 1, collections = null, groot = null, tags = [], tagCode = {}, subTags = {}) {
   const lines = text.split('\n');
-  let stack = [{ level: 0, name: '', _lines: [], kids: [] }];
+  let stack = [{ level: 0, _name: '', _lines: [], kids: [] }];
   let current = stack[0];
   let lastValidNodes = [];
 
@@ -397,18 +397,18 @@ export function parseMON(text, trust = 1, collections = null, groot = null, tags
       }
 
       let headerLength = isDitto || (_nodeType != '#') ? level + 1 : level;
-      let name = line.slice(headerLength).trim();
-      const node = { level, name, _lines: [], kids: [], _nodeType };
+      let _name = line.slice(headerLength).trim();
+      const node = { level, _name, _lines: [], kids: [], _nodeType };
       if (isDitto && trust > 0 && lastValidNodes[level]) {
         node._lines = lastValidNodes[level]._lines;
         node.kids = lastValidNodes[level].kids;
       }
       
       if (collections && _nodeType === '>') {
-        collections[name] ??= [];
-        let path = stack.map((node) => { return node.name.split(' : ')[0] });
+        collections[_name] ??= [];
+        let path = stack.map((node) => { return node._name.split(' : ')[0] });
         let item = [path.slice(1), {}];
-        collections[name].push(item);
+        collections[_name].push(item);
         node._collection = item[1];
       }
 
