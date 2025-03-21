@@ -331,8 +331,8 @@ try {
   throw Error(`${node._name} -> ${err.message}`)
 }
 
-  if (node._collection) {
-    Object.assign(node._collection, obj);
+  if (node._bag) {
+    Object.assign(node._bag, obj);
     return;
   }
   return obj;
@@ -344,7 +344,7 @@ function countLeadingHashes(line) {
   return count;
 }
 
-export function parseMon(text, trust = 1, collections = null, groot = null, tags = [], tagCode = {}, subTags = {}) {
+export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], tagCode = {}, subTags = {}) {
   const lines = text.split('\n');
   let stack = [{ level: 0, _name: '', _lines: [], kids: [] }];
   let current = stack[0];
@@ -404,12 +404,12 @@ export function parseMon(text, trust = 1, collections = null, groot = null, tags
         node.kids = lastValidNodes[level].kids;
       }
       
-      if (collections && _nodeType === '>') {
-        collections[_name] ??= [];
+      if (bags && _nodeType === '>') {
+        bags[_name] ??= [];
         let path = stack.map((node) => { return node._name.split(' : ')[0] });
         let item = [path.slice(1), {}];
-        collections[_name].push(item);
-        node._collection = item[1];
+        bags[_name].push(item);
+        node._bag = item[1];
       }
 
       stack.push(node);
