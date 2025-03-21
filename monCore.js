@@ -246,6 +246,7 @@ try {
     }
     
 //    case '#':
+//    case '>':
     default:
       if (inTag) {
         let [pname, ptags] = node.name.split(' : ');
@@ -306,7 +307,7 @@ try {
     destination[handlePrefix(last, destination)] = childData;
   }
   
-  if (inTag) { return obj; }
+  if (inTag) { return; }
   
   for (let tag of tags) {
     let arrayTag = false;
@@ -330,6 +331,10 @@ try {
   throw Error(`${node.name} -> ${err.message}`)
 }
 
+  if (node._collection) {
+    Object.assign(node._collection, obj);
+    return;
+  }
   return obj;
 }
 
@@ -339,7 +344,7 @@ function countLeadingHashes(line) {
   return count;
 }
 
-export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {}, subTags = {}) {
+export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {}, subTags = {}, collections = null) {
   const lines = text.split('\n');
   let stack = [{ level: 0, name: '', _lines: [], kids: [] }];
   let current = stack[0];
@@ -375,11 +380,12 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       case '"': textLevel = level; break;
       case '=': 
       case ';': 
-      case ':': break;
+      case ':': 
+      case '>': break;
       default: _nodeType = '#'; break;
       }
 
-      while (stack.length && stack[stack.length - 1].level >= level) {
+      while (stack[stack.length - 1].level >= level) {
         stack.pop();
       }
       current = stack[stack.length - 1];
@@ -396,6 +402,14 @@ export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {},
       if (isDitto && trust > 0 && lastValidNodes[level]) {
         node._lines = lastValidNodes[level]._lines;
         node.kids = lastValidNodes[level].kids;
+      }
+      
+      if (collections && _nodeType === '>') {
+        collections[name] ??= [];
+        let path = stack.map((node) => { return node.name.split(' : ')[0] });
+        let item = [path.slice(1), {}];
+        collections[name].push(item);
+        node._collection = item[1];
       }
 
       stack.push(node);
