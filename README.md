@@ -57,7 +57,7 @@ The output destination is set by the last file. See "file handling" below for ad
 - npm install
 - npm run build
 
-That puts **mon.js** in **/dist** and **monCore.bundle.js** in **/demo**.
+That puts **mon.js** in **/dist** and **monReader.js** in **/demo**.
 
 
 ## VS existing formats

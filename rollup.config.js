@@ -16,7 +16,7 @@ export default [
   {
     input: 'monCore.js',
     output: {
-      file: 'demo/monCore.bundle.js',
+      file: 'demo/monReader.js',
       format: 'iife',
       name: 'monCore',
       sourcemap: false,
