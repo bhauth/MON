@@ -344,7 +344,7 @@ function countLeadingHashes(line) {
   return count;
 }
 
-export function parseMON(text, trust = 1, groot = null, tags = [], tagCode = {}, subTags = {}, collections = null) {
+export function parseMON(text, trust = 1, collections = null, groot = null, tags = [], tagCode = {}, subTags = {}) {
   const lines = text.split('\n');
   let stack = [{ level: 0, name: '', _lines: [], kids: [] }];
   let current = stack[0];

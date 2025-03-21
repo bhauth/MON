@@ -15,9 +15,9 @@ async function loadMON(fileSpecs) {
     const inputText = await fs.readFile(filePath, 'utf8');
     const baseName = path.basename(filePath, path.extname(filePath));
 
-    let collection = {};
-    const data = parseMON(inputText, trust, trust >= 3 ? combined : null, parentTags, tagCode, subTags, collection);
-    console.log(JSON.stringify(collection, null, 2));
+    let collections = {};  // todo: base on params, output to file if present ?
+    const data = parseMON(inputText, trust, collections, trust >= 3 ? combined : null, parentTags, tagCode, subTags);
+    console.log(JSON.stringify(collections, null, 2));
     if (fileSpecs.length > 1) {
       combined[baseName] = data;
     } else { combined = data; }
