@@ -1,24 +1,16 @@
-const SINGLE_CHARS = {
-  '-': true,
-  ',': true,
-  '[': true,
-  ']': true,
-  '=': true,
-};
-
 const REGEX_PATTERNS = [
   /\s+/y,               // 0: WS (skipped)
   /-?\d*\.?\d+/y,       // 1: NUM
 // single chars here
   /'[^']*'/y,           // 2: ID"
-  /\btrue\b/y,          // 3: T
-  /\bfalse\b/y,         // 4: F
-  /\bnull\b/y,          // 5: Null
+  /true\b/y,            // 3: T
+  /false\b/y,           // 4: F
+  /null\b/y,            // 5: Null
   /"[^"]*"/y,           // 6: STR
   /[a-zA-Z_][^=\s]*/y   // 7: ID
 ];
 
-const TOKEN_TYPES = ['WS', 'NUM', 'ID"', 'T', 'F', 'Null', 'STR', 'ID'];
+const TOKEN_TYPES = ['', 'NUM', 'ID"', 'T', 'F', 'Null', 'STR', 'ID'];
 
 function tokenize(input) {
   const tokens = [];
@@ -37,21 +29,27 @@ function tokenize(input) {
               tokens.push({ t: TOKEN_TYPES[i], _value: match[0], pos });
             }
             pos += match[0].length;
-            break bb;
+            if (i !== 0 || pos >= input.length) { break bb; }
           }
           i++;
         }
-        ending = REGEX_PATTERNS.length;
+        ending = 8;  // REGEX_PATTERNS.length
         if (i >= ending) {
           throw Error(`\tBad character at ${pos}: ${input[pos]}`);
         }
         const c = input[pos];
-        const singleCharMatch = SINGLE_CHARS[c];
-        if (singleCharMatch) {
+        switch(c) {
+        case '-': 
+        case ',': 
+        case '[': 
+        case ']': 
+        case '=': 
           tokens.push({ t: c, _value: c, pos });
           pos++;
           break bb;
-        }
+        case '"':
+          i = 6;
+        };
       }
     }
   }
@@ -62,8 +60,8 @@ function tokenize(input) {
 let END = { t: 'END' };
 
 class MonParser {
-  constructor(tokens) {
-    this._tokens = tokens;
+  constructor() {
+    this._tokens = [];
     this.pos = 0;
   }
 
@@ -167,7 +165,7 @@ class MonParser {
   }
 }
 
-const parser = new MonParser([]);
+const parser = new MonParser();
 
 let digits = /^\d+$|^\[\]$/;
 
@@ -233,14 +231,14 @@ try {
         console.log(`Tag section "${cname}" skipped due to trust level.`);
         continue;
       }
-      let fn = null;
       const code = child._lines.join('\n');
       try {
-        fn = new Function('root', code);
+        let fn = new Function('root', code);
+        if (fn) { tagCode[cname] = fn; }
       } catch (error) {
         throw Error(`${cname}\n\tError parsing code: ${error}`);
       }
-      if (fn) { tagCode[cname] = fn; }
+      
       parseSection(child, trust, root || obj, groot, ctags, tagCode, subTags, true);
       continue;
     }
