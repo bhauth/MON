@@ -58,7 +58,7 @@ with the .mon config!
     function update() {
       const configText = textarea.value;
       try {
-        let config = monCore.parseMon(configText, 3);
+        let config = mon.parseMon(configText, 3);
         const app = config.app || {};
         delete config.app;
         document.body.style.backgroundColor = app.background_color || 'white';

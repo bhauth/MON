@@ -18,7 +18,7 @@ export default [
     output: {
       file: 'demo/monReader.js',
       format: 'iife',
-      name: 'monCore',
+      name: 'mon',
       sourcemap: false,
     },
     plugins: sharedPlugins,
