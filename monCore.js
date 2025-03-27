@@ -268,8 +268,8 @@ try {
 
     if (childData === undefined || inTag) { continue; }
     let prefixes =
-      trust < 0 ? [cname] : 
       cname[cname.length - 1] === '.' ? [cname.slice(0, -1)] :
+      trust < 0 ? [cname] : 
       cname.split('.');
     
     if (!prefixes.length) {
@@ -280,7 +280,7 @@ try {
     const handlePrefix = (prefix, dest) => {
       if (prefix === '[]') return dest.length;
       if (prefix[0] === '[' && prefix.at(-1) === ']') {
-        if (!Array.isArray(dest)) throw Error(`${cname}\n\tAttempted insertion in non-array`);
+        if (!Array.isArray(dest)) throw Error(`${cname}\n\tCan't insert in non-array`);
         let key = prefix.slice(1, -1);
         let i = dest.indexOf(key);
         return i >= 0 ? i : dest.length;
@@ -308,10 +308,9 @@ try {
   if (inTag) { return; }
   
   for (let tag of tags) {
-    let arrayTag = false;
-    if (tag[0] === ' ') {
+    let arrayTag = tag[0] === ' ';
+    if (arrayTag) {
       tag = tag.slice(1);
-      arrayTag = true;
     }
     let fn = tagCode[tag];
     if (!fn) { continue; }
@@ -388,18 +387,16 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
       }
       current = stack[stack.length - 1];
 
-      let isDitto = false;
-      if (_nodeType === '=' && current.kids.length !== 0) {
-        _nodeType = '#';
-        isDitto = true;
-      }
+      let headerLength = (_nodeType != '#') ? level + 1 : level;
 
-      let headerLength = isDitto || (_nodeType != '#') ? level + 1 : level;
+      let isDitto = _nodeType === '=' && current.kids.length !== 0;
+      if (isDitto) { _nodeType = '#'; }
+
       let _name = line.slice(headerLength).trim();
       const node = { level, _name, _lines: [], kids: [], _nodeType };
       if (isDitto && trust > 0 && lastValidNodes[level]) {
-        node._lines = lastValidNodes[level]._lines;
-        node.kids = lastValidNodes[level].kids;
+        node._lines = [...lastValidNodes[level]._lines];
+        node.kids = [...lastValidNodes[level].kids];
       }
       
       if (bags && _nodeType === '>') {
