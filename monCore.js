@@ -335,12 +335,6 @@ try {
   return obj;
 }
 
-function countLeadingHashes(line) {
-  let count = 0;
-  while (line[count] === '#') count++;
-  return count;
-}
-
 export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], tagCode = {}, subTags = {}) {
   const lines = text.split('\n');
   let stack = [{ level: 0, _name: '', _lines: [], kids: [] }];
@@ -353,17 +347,17 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
   // build hierarchy
   for (let line of lines) {
     if (!textLevel) { line = line.trimStart(); }
+    
+    let level = 0;
+    while (line[level] === '#') level++;
 
     if (commentLevel) {
-      if (line[0] === '#' && (countLeadingHashes(line) <= commentLevel)) {
+      if (level && level <= commentLevel) {
         commentLevel = 0;
       } else continue;
     }
 
-    switch (line[0]) {
-    case '#':
-      const level = countLeadingHashes(line);
-      
+    if (level) {
       if (textLevel && level > textLevel) {
         current._lines.push(line.slice(textLevel).trim());
         continue;
@@ -415,15 +409,9 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
           && (_nodeType === '#' || _nodeType === '=')) {
         lastValidNodes[level] = node;
       }
-      break;
-
-    case '/':
-      if (line[1] === '/') continue;
-      // fallthru
-    default:
+    
+    } else if (!line.startsWith('//'))
       current._lines.push(line);
-      break;
-    }
   }
 
   return parseSection(stack[0], trust, null, groot, tags, tagCode, subTags);
