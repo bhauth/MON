@@ -83,20 +83,17 @@ class MonParser {
     const items = [];
     let currentSubArray = null;
 
-    while (true) {
-      const next = this._peek();
-      if (next === 'END') break;
-      if (next[0] === 'I') { // ID or ID"
-        this._keyValue(result);
-      } else if (next === '-' || next === ',') {
+    bb: { while (true) {
+      let next = this._peek()[0];
+      let value;
+      switch (next) {
+      case '-':
+      case ',':
         this.pos++;
         
-        let value;
         if (this._peek()[0] === 'I') { // ID or ID"
           value = {};
-          do {
-            this._keyValue(value);
-          } while (this._peek()[0] === 'I'); 
+          this._keyValue(value);
         } else {
           value = this._value();
         }
@@ -113,12 +110,19 @@ class MonParser {
             items.push(value);
           }
         }
-      } else {
-        const value = this._value();
+        break;
+      
+      case 'I':   // ID or ID"
+        this._keyValue(result);
+        break;
+      
+      case 'E': break bb;
+      default: 
+        value = this._value();
         this._eat('END');
         return value;
       }
-    }
+    }}
 
     if (currentSubArray) {
       items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
@@ -127,13 +131,16 @@ class MonParser {
     return items.length ? items : result;
 }
 
-  _keyValue(result) {
-    let noQuote = this._peek() === 'ID';
-    let key = noQuote ?
-      this._eat('ID')._value :
-      this._eat('ID"')._value.slice(1, -1);
-    this._eat('=');
-    result[key] = this._value();
+  _keyValue(output) {
+    let next = this._peek();
+    do {
+      let noQuote = next === 'ID';
+      let key = this._eat(next)._value;
+      key = noQuote ? key : key.slice(1, -1);
+      this._eat('=');
+      output[key] = this._value();
+      next = this._peek();
+    } while (next[0] === 'I')
   }
 
   _bracket() {
