@@ -83,7 +83,7 @@ class MonParser {
     const items = [];
     let currentSubArray = null;
 
-    bb: { while (true) {
+    while (true) {
       let next = this._peek()[0];
       let value;
       switch (next) {
@@ -116,19 +116,19 @@ class MonParser {
         this._keyValue(result);
         break;
       
-      case 'E': break bb;
+      case 'E':   // END
+        if (currentSubArray) {
+          items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
+        }
+        return items.length ? items : result;
+      
       default: 
         value = this._value();
         this._eat('END');
         return value;
       }
-    }}
-
-    if (currentSubArray) {
-      items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
     }
 
-    return items.length ? items : result;
 }
 
   _keyValue(output) {
