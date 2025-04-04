@@ -14,38 +14,38 @@ const TOKEN_TYPES = ['', 'NUM', 'ID"', 'T', 'F', 'Null', 'STR', 'ID'];
 
 function tokenize(input) {
   const tokens = [];
-  let pos = 0;
+  let _pos = 0;
 
-  while (pos < input.length) {
+  while (_pos < input.length) {
     bb: {
       let i = 0; let ending = 2;
       while(true) {
         while(i < ending) {
           const pattern = REGEX_PATTERNS[i];
-          pattern.lastIndex = pos;
+          pattern.lastIndex = _pos;
           const match = pattern.exec(input);
           if (match) {
             if (i !== 0) { // Skip WS
-              tokens.push({ t: TOKEN_TYPES[i], _value: match[0], pos });
+              tokens.push({ t: TOKEN_TYPES[i], _value: match[0], _pos });
             }
-            pos += match[0].length;
-            if (i !== 0 || pos >= input.length) { break bb; }
+            _pos += match[0].length;
+            if (i !== 0 || _pos >= input.length) { break bb; }
           }
           i++;
         }
         ending = 8;  // REGEX_PATTERNS.length
         if (i >= ending) {
-          throw Error(`\tBad character at ${pos}: ${input[pos]}`);
+          throw Error(`\tBad character at ${_pos}: ${input[_pos]}`);
         }
-        const c = input[pos];
-        switch(c) {
+        const t = input[_pos];
+        switch(t) {
         case '-': 
         case ',': 
         case '[': 
         case ']': 
         case '=': 
-          tokens.push({ t: c, _value: c, pos });
-          pos++;
+          tokens.push({ t, _pos });
+          _pos++;
           break bb;
         case '"':
           i = 6;
@@ -62,20 +62,19 @@ let END = { t: 'END' };
 class MonParser {
   constructor() {
     this._tokens = [];
-    this.pos = 0;
+    this._pos = 0;
   }
 
   _peek() {
-    return this._tokens[this.pos]?.t || 'END';
+    return this._tokens[this._pos]?.t || 'END';
   }
   
   _eat(type) {
-    const token = this._tokens[this.pos] || END;
+    const token = this._tokens[this._pos++] || END;
     if (token.t === type) {
-      this.pos++;
       return token;
     }
-    throw Error(`\tExpected ${type}, got ${token.t} at ${token.pos}`);
+    throw Error(`\tExpected ${type}, got ${token.t} at ${token._pos}`);
   }
 
   section() {
@@ -89,7 +88,7 @@ class MonParser {
       switch (next) {
       case '-':
       case ',':
-        this.pos++;
+        this._pos++;
         
         if (this._peek()[0] === 'I') { // ID or ID"
           value = {};
@@ -148,7 +147,7 @@ class MonParser {
     if (this._peek() !== ']') {
       items.push(this._value());
       while (this._peek() === ',') {
-        this.pos++;
+        this._pos++;
         items.push(this._value());
       }
     }
@@ -157,8 +156,7 @@ class MonParser {
   }
 
   _value() {
-    const token = this._tokens[this.pos] || END;
-    this.pos++;
+    const token = this._tokens[this._pos++] || END;
     switch (token.t) {
       case 'STR': return token._value.slice(1, -1);
       case 'NUM': return parseFloat(token._value);
@@ -167,7 +165,7 @@ class MonParser {
       case 'Null': return null;
       case '[': return this._bracket();
       default:
-        throw Error(`\tBad token: ${token.t} at ${token.pos}`);
+        throw Error(`\tBad token: ${token.t} at ${token._pos}`);
     }
   }
 }
@@ -185,7 +183,7 @@ try {
   if (!inTag) try {
     if (node._lines.length) { // parse item
       parser._tokens = tokenize(node._lines.join('\n'));
-      parser.pos = 0; 
+      parser._pos = 0; 
       obj = parser.section();
     }
   } catch (err) {
@@ -194,7 +192,7 @@ try {
   
   let childData = undefined;
   let space = /\s+/;
-  for (const child of node.kids) {
+  for (const child of node._kids) {
     let [cname, ctags] = child._name.split(' : ');
     ctags = ctags ? ctags.trim().split(space) : [];
     cname = cname.trim();
@@ -344,7 +342,7 @@ try {
 
 export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], tagCode = {}, subTags = {}) {
   const lines = text.split('\n');
-  let stack = [{ level: 0, _name: '', _lines: [], kids: [] }];
+  let stack = [{ level: 0, _name: '', _lines: [], _kids: [] }];
   let current = stack[0];
   let lastValidNodes = [];
 
@@ -390,14 +388,14 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
 
       let headerLength = (_nodeType != '#') ? level + 1 : level;
 
-      let isDitto = _nodeType === '=' && current.kids.length !== 0;
+      let isDitto = _nodeType === '=' && current._kids.length !== 0;
       if (isDitto) { _nodeType = '#'; }
 
       let _name = line.slice(headerLength).trim();
-      const node = { level, _name, _lines: [], kids: [], _nodeType };
+      const node = { level, _name, _lines: [], _kids: [], _nodeType };
       if (isDitto && trust > 0 && lastValidNodes[level]) {
         node._lines = [...lastValidNodes[level]._lines];
-        node.kids = [...lastValidNodes[level].kids];
+        node._kids = [...lastValidNodes[level]._kids];
       }
       
       if (bags && _nodeType === '>') {
@@ -409,7 +407,7 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
       }
 
       stack.push(node);
-      current.kids.push(node);
+      current._kids.push(node);
       current = node;
 
       if (!isDitto
