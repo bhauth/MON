@@ -78,7 +78,7 @@ class MonParser {
   }
 
   section() {
-    const result = {};
+    let result = null;
     const items = [];
     let currentSubArray = null;
 
@@ -112,6 +112,7 @@ class MonParser {
         break;
       
       case 'I':   // ID or ID"
+        result = {};
         this._keyValue(result);
         break;
       
@@ -119,7 +120,12 @@ class MonParser {
         if (currentSubArray) {
           items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
         }
-        return items.length ? items : result;
+        let len = items.length;
+        if (result) {
+          if (len) result._ = items;
+          return result;
+        }
+        return len ? items : {};
       
       default: 
         value = this._value();
