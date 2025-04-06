@@ -144,14 +144,13 @@ class MonParser {
 
   _bracket() {
     const items = [];
-    if (this._peek() !== ']') {
+    while (this._peek() !== ']') {
       items.push(this._value());
-      while (this._peek() === ',') {
+      if (this._peek() === ',') {
         this._pos++;
-        items.push(this._value());
       }
     }
-    this._eat(']');
+    this._pos++;
     return items;
   }
 
