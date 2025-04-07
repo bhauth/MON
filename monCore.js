@@ -128,7 +128,8 @@ class MonParser {
         return len ? items : {};
       
       default: 
-        value = this._value();
+        if (!items.length && !result)
+          value = this._value();
         this._eat('END');
         return value;
       }
