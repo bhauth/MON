@@ -77,18 +77,19 @@ class MonParser {
     throw Error(`\tExpected ${type}, got ${token.t} at ${token._pos}`);
   }
 
-  section() {
+  _section() {
     let result = null;
-    const items = [];
+    let items = null;
     let currentSubArray = null;
 
     while (true) {
       let next = this._peek()[0];
-      let value;
       switch (next) {
       case '-':
       case ',':
         this._pos++;
+        items ??= [];
+        let value;
         
         if (this._peek()[0] === 'I') { // ID or ID"
           value = {};
@@ -112,7 +113,7 @@ class MonParser {
         break;
       
       case 'I':   // ID or ID"
-        result = {};
+        result = result ? { _: result } : {};
         this._keyValue(result);
         break;
       
@@ -120,18 +121,15 @@ class MonParser {
         if (currentSubArray) {
           items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
         }
-        let len = items.length;
         if (result) {
-          if (len) result._ = items;
+          if (items) result._ = items;
           return result;
         }
-        return len ? items : {};
+        return items ? items : {};
       
       default: 
-        if (!items.length && !result)
-          value = this._value();
-        this._eat('END');
-        return value;
+        if (result) this._eat('END');
+        result = this._value();
       }
     }
 
@@ -190,7 +188,7 @@ try {
     if (node._lines.length) { // parse item
       parser._tokens = tokenize(node._lines.join('\n'));
       parser._pos = 0; 
-      obj = parser.section();
+      obj = parser._section();
     }
   } catch (err) {
     throw Error(`\n\tParser error:\n${err.message}`)
@@ -287,6 +285,8 @@ try {
       obj = childData;
       continue;
     }
+    
+    if (typeof obj !== "object") obj = { _: obj };
     
     const handlePrefix = (prefix, dest) => {
       if (prefix === '[]') return dest.length;
