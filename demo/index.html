@@ -49,8 +49,8 @@ with the .mon config!
   </div>
   <div id="output">
   </div>
-  <script src="monReader.js"></script>
-  <script>
+  <script type="module">
+    import { parseMon } from "./monReader.js";
     const textarea = document.getElementById('config');
     const output = document.getElementById('output');
     let debounceTimeout;
@@ -58,7 +58,7 @@ with the .mon config!
     function update() {
       const configText = textarea.value;
       try {
-        let config = mon.parseMon(configText, 3);
+        let config = parseMon(configText, 3);
         const app = config.app || {};
         delete config.app;
         document.body.style.backgroundColor = app.background_color || 'white';

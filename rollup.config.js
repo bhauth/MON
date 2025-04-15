@@ -17,7 +17,7 @@ export default [
     input: 'monCore.js',
     output: {
       file: 'demo/monReader.js',
-      format: 'iife',
+      format: 'esm',
       name: 'mon',
       sourcemap: false,
     },
