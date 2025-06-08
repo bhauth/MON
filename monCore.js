@@ -258,17 +258,14 @@ try {
       if (inTag) {
         let [pname, ptags] = node._name.split(' : ');
         let pLabel = (node._nodeType === ':') ? pname : ptags;
-        subTags[pLabel] ??= [];
-        let parent = subTags[pLabel];
+        let parent = subTags[pLabel] ??= [];
         let cLabel = cname === '*' ? ' ' : cname;
-        parent[cLabel] ??= [];
-        parent[cLabel].push(...ctags);
+        (parent[cLabel] ??= []).push(...ctags);
         if (cLabel.endsWith(".[]")) {
           const arrayTags = ctags.map(tag => " " + tag);
           let sliced = cLabel.slice(0,-3);
           if (sliced === '*') { sliced = ' '; }
-          parent[sliced] ??= [];
-          parent[sliced].push(...arrayTags);
+          (parent[sliced] ??= []).push(...arrayTags);
         }
       }
       childData = parseSection(child, trust, root || obj, groot, ctags, tagCode, subTags, inTag);
@@ -405,10 +402,9 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
       }
       
       if (bags && _nodeType === '>') {
-        bags[_name] ??= [];
         let path = stack.map((node) => { return node._name.split(' : ')[0] });
         let item = [path.slice(1), {}];
-        bags[_name].push(item);
+        (bags[_name] ??= []).push(item);
         node._bag = item[1];
       }
 
