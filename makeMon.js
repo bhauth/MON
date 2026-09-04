@@ -1,103 +1,116 @@
+const TEXT_BLOCK_MIN = 80;
+const numFmt = new Intl.NumberFormat("en-US", { useGrouping: false, maximumFractionDigits: 20 });
+
 export function objToMon(json, options) {
-  const indentLevel = options.indent || 2;
-  const indent = " ".repeat(indentLevel);
+  const unit = " ".repeat(options?.indent ?? 2);
+  const root = json === undefined ? {} : json;
   const lines = [];
-  
-  sectionToMon("", json || {}, '', lines, indent);
+  let afterText = false;
+
+  function emitValue(v, level, isRoot) {
+    if (Array.isArray(v)) emitArray(v, level, isRoot);
+    else if (isObj(v)) emitObject(v, level);
+    else if (isRoot && wantsTextBlock(v)) pushTextBlock("", v, 1);
+    else lines.push((isRoot ? "" : unit) + formatScalar(v));
+  }
+
+  function emitObject(obj, level) {
+    const at = level === 0 ? "" : unit;
+    const nested = [];
+
+    for (const [k, v] of Object.entries(obj)) {
+      if (isObj(v)) {
+        nested.push([k, v]);
+      } else if (wantsTextBlock(v)) {
+        pushTextBlock(k, v, level + 1);
+      } else {
+        lines.push(`${at}${kvpKey(k)} = ${formatScalar(v)}`);
+      }
+    }
+
+    for (const [k, v] of nested) {
+      pushHeader(k, level + 1, false);
+      emitValue(v, level + 1, false);
+    }
+  }
+
+  function emitArray(arr, level, isRoot) {
+    const at = isRoot ? "" : unit;
+    if (!arr.length) return lines.push(at + "[]");
+
+    let rowPos = true;
+    for (const e of arr) {
+      const text = wantsTextBlock(e);
+      let body;
+
+      if (rowPos && !text && (!isObj(e) || (body = getFlatRowBody(e)) !== null)) {
+        lines.push(`${at}- ${body !== undefined ? body : formatScalar(e)}`);
+      } else {
+        rowPos = false;
+        pushHeader("[]", level + 1, text);
+        if (text) pushTextLines(e, level + 1);
+        else emitValue(e, level + 1, false);
+      }
+    }
+  }
+
+  function pushTextBlock(name, s, level) {
+    pushHeader(name, level, true);
+    pushTextLines(s, level);
+  }
+
+  function pushTextLines(s, level) {
+    const prefix = "#".repeat(level);
+    for (const l of s.split("\n")) {
+      lines.push(l.startsWith("#") ? prefix + l : l);
+    }
+    afterText = true;
+  }
+
+  function pushHeader(name, level, text) {
+    if (/[\n]| : /.test(name)) {
+      throw Error(`unusable section name: ${JSON.stringify(name)}`);
+    }
+    if (level === 1 && lines.length && !afterText) lines.push("");
+    afterText = false;
+
+    let h = "#".repeat(level) + (text ? '" ' : " ");
+    if (/^["/=;:>]/.test(name)) h += " ";
+    lines.push(h + (name.includes(".") ? name + "." : name));
+  }
+
+  emitValue(root, 0, true);
   return lines.join("\n");
 }
 
-function isObject(value) {
-  return typeof value === "object" && value !== null;
-}
-
-function pushHeading(lines, header, key) {
-  lines.push(`${header} ${key}${key.includes('.') ? '.' : ''}`);
-}
-
-function sectionToMon(key, value, header, lines, indent) {
-  if (typeof value === "string" && value.includes("\n")) {
-    pushHeading(lines, header + '"', key);
-    let values = value.split("\n");
-    values.pop();
-    values.forEach(line => {
-      if (line[0] === "#") {
-        lines.push(header + line);
-      } else lines.push(line);
-    });
-  } else {
-    if (header) {
-      if (header === '#' && lines.length) { lines.push(''); }
-      pushHeading(lines, header, key);
-      }
-    if (Array.isArray(value)) {
-      processArray(value, header + '#', lines, indent);
-    } else if (isObject(value)) {
-      header += '#';
-      for (const [k, v] of Object.entries(value)) {
-        if (!isObject(v)) {
-          pushHeading(lines, header, k);
-          lines.push(`${indent}${formatValue(v)}`);
-        } else if (isSimple(v)) {
-          pushHeading(lines, header, k);
-          formatSimpleObject(v, indent, lines);
-        } else {
-          sectionToMon(k, v, header, lines, indent);
-        }
-      }
-    } else {
-      const formatted = formatValue(value);
-      lines.push(`${indent}${formatted}`);
-    }
+function getFlatRowBody(arr) {
+  if (!Array.isArray(arr)) return null;
+  if (!arr.length) return "[]";
+  for (let i = 0; i < arr.length; i++) {
+    if (isObj(arr[i])) return null;
   }
+  return arr.length === 1 ? `[${formatScalar(arr[0])}]` : arr.map(formatScalar).join(", ");
 }
 
-function handleItem(item, header, lines, indent) {
-  if (handleSimpleItem(item, indent, lines)) return;
-  if (Array.isArray(item)) {
-    processArray(item, header, lines, indent);
-  } else {
-    for (const [k, v] of Object.entries(item)) {
-      sectionToMon(k, v, header, lines, indent);
-    }
-  }
+function kvpKey(k) {
+  if (/^[a-zA-Z_][^=\s]*$/.test(k) && !/^(true|false|null)$/.test(k)) return k;
+  if (k.includes("'")) throw Error(`key cannot be quoted: ${JSON.stringify(k)}`);
+  return `'${k}'`;
 }
 
-function processArray(array, header, lines, indent) {
-  for (let item of array) {
-    if (handleSimpleItem(item, indent, lines)) continue;
-    pushHeading(lines, header, '[]');
-    handleItem(item, header + '#', lines, indent);
-  }
+function wantsTextBlock(v) {
+  if (typeof v !== "string" || !v) return false;
+  if (v.includes('"')) return true;
+  if (!v.includes("\n")) return false;
+  return /\n[#\s]/.test(v) || v.length >= TEXT_BLOCK_MIN;
 }
 
-function handleSimpleItem(item, indent, lines) {
-  if (!isObject(item)) {
-    lines.push(`${indent}- ${formatValue(item)}`);
-    return true;
-  } else if (isSimple(item)) {
-    lines.push(`${indent}-`);
-    formatSimpleObject(item, indent + indent, lines);
-    return true;
-  }
-  return false;
-}
+const isObj = v => v !== null && typeof v === "object";
 
-function formatSimpleObject(obj, indentLevel, lines) {
-  for (const [k, v] of Object.entries(obj)) {
-    lines.push(`${indentLevel}${`'${k}'`} = ${formatValue(v)}`);
-  }
-}
-
-function isSimple(value) {
-  return isObject(value) && !Array.isArray(value) &&
-    Object.values(value).every(v => !isObject(v));
-}
-
-function formatValue(value) {
-  let type = typeof value;
-  return type === "string" ? `"${value}"`
-    : value === null || type === "boolean" || type === "number" ? String(value)
-    : Array.isArray(value) ? `[${value.map(formatValue).join(", ")}]`
-    : (() => { throw new Error(`Unsupported type: ${type}`) })();
+function formatScalar(v) {
+  const t = typeof v;
+  if (t === "string") return `"${v}"`;
+  if (t === "number") return Number.isFinite(v) ? numFmt.format(v) : `"${v}"`;
+  if (t === "boolean" || v === null) return String(v);
+  throw Error(`unsupported value type: ${t}`);
 }
