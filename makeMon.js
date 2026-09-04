@@ -2,7 +2,7 @@ const KEYVAL = "K";
 const TEXT_BLOCK_MIN = 80;
 
 export function objToMon(json, options) {
-  const unit = " ".repeat((options && options.indent) || 2);
+  const unit = " ".repeat(options?.indent || 2);
   const root = json === undefined ? {} : json;
   const meta = new Map();
   scanMeta(root, meta);
@@ -25,7 +25,7 @@ function scanMeta(node, meta) {
     meta.set(node, m);
     return m;
   }
-  if (node !== null && typeof node === "object") {
+  if (isObj(node)) {
     for (const v of Object.values(node)) scanMeta(v, meta);
     meta.set(node, KEYVAL);
     return KEYVAL;
@@ -109,7 +109,7 @@ function pushTextLines(s, level, lines) {
 
 function pushHeader(name, level, lines, text) {
   if (name.includes("\n") || name.includes(" : ")) {
-    throw new Error(`unusable section name: ${JSON.stringify(name)}`);
+    throw Error(`unusable section name: ${JSON.stringify(name)}`);
   }
   if (level === 1 && lines.length && !lines.afterText) lines.push("");
   lines.afterText = false;
@@ -122,7 +122,7 @@ function pushHeader(name, level, lines, text) {
 function kvpKey(k) {
   if (/^[a-zA-Z_][^=\s]*$/.test(k) && k !== "true" && k !== "false" && k !== "null") return k;
   if (k.includes("'") || k.includes("\n")) {
-    throw new Error(`key cannot be quoted: ${JSON.stringify(k)}`);
+    throw Error(`key cannot be quoted: ${JSON.stringify(k)}`);
   }
   return `'${k}'`;
 }
@@ -144,7 +144,7 @@ function formatScalar(v) {
   if (t === "string") return `"${v}"`;
   if (t === "number") return numToMon(v);
   if (t === "boolean" || v === null) return String(v);
-  throw new Error(`unsupported value type: ${t}`);
+  throw Error(`unsupported value type: ${t}`);
 }
 
 // expand JSON exponents, eg 1e4
