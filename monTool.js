@@ -3,6 +3,14 @@ import * as path from 'path';
 import { parseMon } from './monCore.js';
 import { objToMon } from './makeMon.js';
 
+function resolveSafe(filePath) {
+  const normalized = path.normalize(filePath);
+  if (path.isAbsolute(normalized) || normalized.split(path.sep).includes('..')) {
+    throw new Error(`Invalid path: "${filePath}" is outside the working directory`);
+  }
+  const baseDir = process.cwd();
+  return baseDir + path.sep + normalized;
+}
 
 async function loadMon(fileSpecs, bags = null) {
   let combined = {};
@@ -12,7 +20,7 @@ async function loadMon(fileSpecs, bags = null) {
   for (const [filePath, params = {}] of fileSpecs) {
     const trust = parseInt(params.trust || '3', 10);
     let parentTags = params.tag ? [params.tag] : [];
-    const inputText = await fs.readFile(filePath, 'utf8');
+    const inputText = await fs.readFile(resolveSafe(filePath), 'utf8');
     const baseName = path.basename(filePath, path.extname(filePath));
 
     const data = parseMon(inputText, trust, bags,
@@ -60,36 +68,36 @@ async function processFiles(fileArg) {
   const singleJson = fileSpecs.length === 1 && path.extname(fileSpecs[0][0]).toLowerCase() === '.json';
 
   if (allMon) {
-    const outputFile = path.join(outputDir, `${baseName}.json`);
+    const outputFile = `${outputDir}${path.sep}${baseName}.json`;
     
     let bagsFile = lastParams.bags;
     let bags = null;
     if (bagsFile) {
       bags = {};
-      bagsFile = path.join(outputDir, `${bagsFile}.json`);
+      bagsFile = `${outputDir}${path.sep}${bagsFile}.json`;
     }
     
     const combined = await loadMon(fileSpecs, bags);
     let indent = parseInt(lastParams.indent) || 2;
     const outputData = JSON.stringify(combined, null, indent);
     
-    await fs.writeFile(outputFile, outputData, 'utf8');
+    await fs.writeFile(resolveSafe(outputFile), outputData, 'utf8');
     let bagNotice = '';
     if (bagsFile) {
       const bagText = JSON.stringify(bags, null, indent);
-      await fs.writeFile(bagsFile, bagText, 'utf8');
+      await fs.writeFile(resolveSafe(bagsFile), bagText, 'utf8');
       bagNotice = ` and '${bagsFile}'`;
     }
     
     console.log(`Converted ${fileSpecs.length > 1 ? 'MON files' : 'MON file'} to '${outputFile}'${bagNotice}`);
     return outputFile;
   } else if (singleJson) {
-    const outputFile = path.join(outputDir, `${baseName}.mon`);
+    const outputFile = `${outputDir}${path.sep}${baseName}.mon`;
     const [filePath, params = {}] = fileSpecs[0];
-    const inputText = await fs.readFile(filePath, 'utf8');
+    const inputText = await fs.readFile(resolveSafe(filePath), 'utf8');
     const jsonObj = JSON.parse(inputText);
     const outputData = objToMon(jsonObj, params);
-    await fs.writeFile(outputFile, outputData, 'utf8');
+    await fs.writeFile(resolveSafe(outputFile), outputData, 'utf8');
     console.log(`Converted JSON to MON: '${outputFile}'`);
     return outputFile;
   } else {
