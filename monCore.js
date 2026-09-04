@@ -1,6 +1,6 @@
 const REGEX_PATTERNS = [
   /\s+/y,               // 0: WS (skipped)
-  /-?\d*\.?\d+/y,       // 1: NUM
+  /-?\d*\.?\d+(?:[eE][+-]?\d+)?/y,       // 1: NUM
 // single chars here
   /'[^']*'/y,           // 2: ID"
   /true\b/y,            // 3: T

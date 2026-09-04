@@ -1,5 +1,4 @@
 const TEXT_BLOCK_MIN = 80;
-const numFmt = new Intl.NumberFormat("en-US", { useGrouping: false, maximumFractionDigits: 20 });
 
 // Validation and format rules
 const RE_INVALID_SECTION_NAME = /\n| : /;
@@ -96,7 +95,7 @@ function getFlatRowBody(arr) {
   if (!Array.isArray(arr)) return null;
   if (!arr.length) return "[]";
   for (let i = 0; i < arr.length; i++) {
-    if (isObj(arr[i])) return null;
+    if (isObj(arr[i]) || wantsTextBlock(arr[i])) return null;
   }
   return arr.length === 1 ? `[${formatScalar(arr[0])}]` : arr.map(formatScalar).join(", ");
 }
@@ -111,13 +110,13 @@ function wantsTextBlock(v) {
   if (typeof v !== "string" || !v) return false;
   if (v.includes('"')) return true;
   if (!v.includes("\n")) return false;
-  return RE_INDENT_OR_HASH_LINE.test(v) || v.length >= TEXT_BLOCK_MIN;
+  return v.length >= TEXT_BLOCK_MIN || RE_INDENT_OR_HASH_LINE.test(v);
 }
 
 function formatScalar(v) {
   const t = typeof v;
   if (t === "string") return `"${v}"`;
-  if (t === "number") return Number.isFinite(v) ? numFmt.format(v) : `"${v}"`;
+  if (t === "number") return Number.isFinite(v) ? String(v) : `"${v}"`;
   if (t === "boolean" || v === null) return String(v);
   throw Error(`unsupported value type: ${t}`);
 }
