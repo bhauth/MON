@@ -417,7 +417,7 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
         lastValidNodes[level] = node;
       }
     
-    } else if (!line.startsWith('//'))
+    } else if (textLevel || !line.startsWith('//'))
       current._lines.push(line);
   }
 

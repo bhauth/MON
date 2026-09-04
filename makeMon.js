@@ -4,7 +4,7 @@ const TEXT_BLOCK_MIN = 80;
 const RE_INVALID_SECTION_NAME = /\n| : /;
 const RE_SPECIAL_HEADER_PREFIX = /^["/=;:>]/;
 const RE_VALID_BARE_KEY = /^[a-zA-Z_][^=\s]*$/;
-const RE_INDENT_OR_HASH_LINE = /\n[#\s]/;
+const RE_UNSAFE_MULTILINE = /\n([#\s]|\/\/)/;
 const RESERVED_KEYS = new Set(["true", "false", "null"]);
 
 const isObj = v => v !== null && typeof v === "object";
@@ -110,7 +110,7 @@ function wantsTextBlock(v) {
   if (typeof v !== "string" || !v) return false;
   if (v.includes('"')) return true;
   if (!v.includes("\n")) return false;
-  return v.length >= TEXT_BLOCK_MIN || RE_INDENT_OR_HASH_LINE.test(v);
+  return v.length >= TEXT_BLOCK_MIN || RE_UNSAFE_MULTILINE.test(v);
 }
 
 function formatScalar(v) {
