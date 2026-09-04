@@ -1,6 +1,15 @@
 const TEXT_BLOCK_MIN = 80;
 const numFmt = new Intl.NumberFormat("en-US", { useGrouping: false, maximumFractionDigits: 20 });
 
+// Validation and format rules
+const RE_INVALID_SECTION_NAME = /\n| : /;
+const RE_SPECIAL_HEADER_PREFIX = /^["/=;:>]/;
+const RE_VALID_BARE_KEY = /^[a-zA-Z_][^=\s]*$/;
+const RE_INDENT_OR_HASH_LINE = /\n[#\s]/;
+const RESERVED_KEYS = new Set(["true", "false", "null"]);
+
+const isObj = v => v !== null && typeof v === "object";
+
 export function objToMon(json, options) {
   const unit = " ".repeat(options?.indent ?? 2);
   const root = json === undefined ? {} : json;
@@ -68,14 +77,14 @@ export function objToMon(json, options) {
   }
 
   function pushHeader(name, level, text) {
-    if (/[\n]| : /.test(name)) {
+    if (RE_INVALID_SECTION_NAME.test(name)) {
       throw Error(`unusable section name: ${JSON.stringify(name)}`);
     }
     if (level === 1 && lines.length && !afterText) lines.push("");
     afterText = false;
 
     let h = "#".repeat(level) + (text ? '" ' : " ");
-    if (/^["/=;:>]/.test(name)) h += " ";
+    if (RE_SPECIAL_HEADER_PREFIX.test(name)) h += " ";
     lines.push(h + (name.includes(".") ? name + "." : name));
   }
 
@@ -93,7 +102,7 @@ function getFlatRowBody(arr) {
 }
 
 function kvpKey(k) {
-  if (/^[a-zA-Z_][^=\s]*$/.test(k) && !/^(true|false|null)$/.test(k)) return k;
+  if (RE_VALID_BARE_KEY.test(k) && !RESERVED_KEYS.has(k)) return k;
   if (k.includes("'")) throw Error(`key cannot be quoted: ${JSON.stringify(k)}`);
   return `'${k}'`;
 }
@@ -102,10 +111,8 @@ function wantsTextBlock(v) {
   if (typeof v !== "string" || !v) return false;
   if (v.includes('"')) return true;
   if (!v.includes("\n")) return false;
-  return /\n[#\s]/.test(v) || v.length >= TEXT_BLOCK_MIN;
+  return RE_INDENT_OR_HASH_LINE.test(v) || v.length >= TEXT_BLOCK_MIN;
 }
-
-const isObj = v => v !== null && typeof v === "object";
 
 function formatScalar(v) {
   const t = typeof v;
