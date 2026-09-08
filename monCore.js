@@ -367,7 +367,7 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
 
     if (level) {
       if (textLevel && level > textLevel) {
-        current._lines.push(line.slice(textLevel).trim());
+        current._lines.push(line.slice(textLevel));
         continue;
       }
       
