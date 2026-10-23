@@ -1,57 +1,84 @@
-const REGEX_PATTERNS = [
-  /\s+/y,               // 0: WS (skipped)
-  /-?\d*\.?\d+(?:[eE][+-]?\d+)?/y,       // 1: NUM
-// single chars here
-  /'[^']*'/y,           // 2: ID"
-  /true\b/y,            // 3: T
-  /false\b/y,           // 4: F
-  /null\b/y,            // 5: Null
-  /"[^"]*"/y,           // 6: STR
-  /[a-zA-Z_][^=\s]*/y   // 7: ID
-];
+const NUM_PATTERN = /-?\d*\.?\d+(?:[eE][+-]?\d+)?/y;
+const ID_QUOTE_PATTERN = /'[^']*'/y;
+const STR_PATTERN = /"[^"]*"/y;
+const WS_PATTERN = /\s+/y;
+const ID_PATTERN = /[a-zA-Z_][^=\s]*/y;
+const T_PATTERN = /true\b/y;
+const F_PATTERN = /false\b/y;
+const NULL_PATTERN = /null\b/y;
 
-const TOKEN_TYPES = ['', 'NUM', 'ID"', 'T', 'F', 'Null', 'STR', 'ID'];
+// Push a token of `type` if `pattern` matches at _pos; return the match
+// length, or 0 when it does not match.
+function at(tokens, input, _pos, pattern, type) {
+  pattern.lastIndex = _pos;
+  const m = pattern.exec(input);
+  if (!m) { return 0; }
+  tokens.push({ t: type, _value: m[0], _pos });
+  return m[0].length;
+}
 
 function tokenize(input) {
   const tokens = [];
   let _pos = 0;
 
   while (_pos < input.length) {
-    bb: {
-      let i = 0; let ending = 2;
-      while(true) {
-        while(i < ending) {
-          const pattern = REGEX_PATTERNS[i];
-          pattern.lastIndex = _pos;
-          const match = pattern.exec(input);
-          if (match) {
-            if (i !== 0) { // Skip WS
-              tokens.push({ t: TOKEN_TYPES[i], _value: match[0], _pos });
-            }
-            _pos += match[0].length;
-            if (i !== 0 || _pos >= input.length) { break bb; }
-          }
-          i++;
-        }
-        ending = 8;  // REGEX_PATTERNS.length
-        if (i >= ending) {
-          throw Error(`\tBad character at ${_pos}: ${input[_pos]}`);
-        }
-        const t = input[_pos];
-        switch(t) {
-        case '-': 
-        case ',': 
-        case '[': 
-        case ']': 
-        case '=': 
-          tokens.push({ t, _pos });
-          _pos++;
-          break bb;
-        case '"':
-          i = 6;
-        };
+    const c = input[_pos];
+    let n;
+
+    switch (c) {
+    case ' ':
+    case '\n':
+      _pos++;
+      continue;
+
+    case ',':
+    case '[':
+    case ']':
+    case '=':
+      tokens.push({ t: c, _pos });
+      _pos++;
+      continue;
+
+    // '-' is punctuation unless a number follows it
+    case '-':
+      n = at(tokens, input, _pos, NUM_PATTERN, 'NUM');
+      if (!n) {
+        tokens.push({ t: c, _pos });
+        n = 1;
       }
+      break;
+
+    case '"':
+      n = at(tokens, input, _pos, STR_PATTERN, 'STR');
+      break;
+
+    case "'":
+      n = at(tokens, input, _pos, ID_QUOTE_PATTERN, 'ID"');
+      break;
+
+    case 't':
+      n = at(tokens, input, _pos, T_PATTERN, 'T') || at(tokens, input, _pos, ID_PATTERN, 'ID');
+      break;
+
+    case 'f':
+      n = at(tokens, input, _pos, F_PATTERN, 'F') || at(tokens, input, _pos, ID_PATTERN, 'ID');
+      break;
+
+    case 'n':
+      n = at(tokens, input, _pos, NULL_PATTERN, 'Null') || at(tokens, input, _pos, ID_PATTERN, 'ID');
+      break;
+
+    default:
+      WS_PATTERN.lastIndex = _pos;
+      if (WS_PATTERN.test(input)) {
+        _pos = WS_PATTERN.lastIndex;
+        continue;
+      }
+      n = at(tokens, input, _pos, NUM_PATTERN, 'NUM') || at(tokens, input, _pos, ID_PATTERN, 'ID');
     }
+
+    if (!n) { throw Error(`\tBad character at ${_pos}: ${c}`); }
+    _pos += n;
   }
 
   return tokens;
@@ -59,122 +86,115 @@ function tokenize(input) {
 
 let END = { t: 'END' };
 
-class MonParser {
-  constructor() {
-    this._tokens = [];
-    this._pos = 0;
+let _tokens = [];
+let _pos = 0;
+
+function _peek() {
+  return _tokens[_pos].t;
+}
+
+function _eat(type) {
+  const token = _tokens[_pos++];
+  if (token.t === type) {
+    return token;
   }
+  throw Error(`\tExpected ${type}, got ${token.t} at ${token._pos}`);
+}
 
-  _peek() {
-    return this._tokens[this._pos]?.t || 'END';
-  }
-  
-  _eat(type) {
-    const token = this._tokens[this._pos++] || END;
-    if (token.t === type) {
-      return token;
-    }
-    throw Error(`\tExpected ${type}, got ${token.t} at ${token._pos}`);
-  }
+function _section() {
+  let result = null;
+  let items = null;
+  let currentSubArray = null;
 
-  _section() {
-    let result = null;
-    let items = null;
-    let currentSubArray = null;
-
-    while (true) {
-      let next = this._peek()[0];
-      switch (next) {
-      case '-':
-      case ',':
-        this._pos++;
-        items ??= [];
-        let value;
-        
-        if (this._peek()[0] === 'I') { // ID or ID"
-          value = {};
-          this._keyValue(value);
-        } else {
-          value = this._value();
-        }
-
-        if (next === '-') {
-          if (currentSubArray) {
-            items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
-          }
-          currentSubArray = [value];
-        } else {
-          if (currentSubArray) {
-            currentSubArray.push(value);
-          } else {
-            items.push(value);
-          }
-        }
-        break;
+  while (true) {
+    let next = _peek()[0];
+    switch (next) {
+    case '-':
+    case ',':
+      _pos++;
+      items ??= [];
+      let value;
       
-      case 'I':   // ID or ID"
-        result = result ? { _: result } : {};
-        this._keyValue(result);
-        break;
-      
-      case 'E':   // END
+      if (_peek()[0] === 'I') { // ID or ID"
+        value = {};
+        _keyValue(value);
+      } else {
+        value = _value();
+      }
+
+      if (next === '-') {
         if (currentSubArray) {
           items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
         }
-        if (result) {
-          if (items) result._ = items;
-          return result;
+        currentSubArray = [value];
+      } else {
+        if (currentSubArray) {
+          currentSubArray.push(value);
+        } else {
+          items.push(value);
         }
-        return items ? items : {};
-      
-      default: 
-        if (result) this._eat('END');
-        result = this._value();
       }
-    }
-
-}
-
-  _keyValue(output) {
-    let next = this._peek();
-    do {
-      let noQuote = next === 'ID';
-      let key = this._eat(next)._value;
-      key = noQuote ? key : key.slice(1, -1);
-      this._eat('=');
-      output[key] = this._value();
-      next = this._peek();
-    } while (next[0] === 'I')
-  }
-
-  _bracket() {
-    const items = [];
-    while (this._peek() !== ']') {
-      items.push(this._value());
-      if (this._peek() === ',') {
-        this._pos++;
+      break;
+    
+    case 'I':   // ID or ID"
+      result = result ? { _: result } : {};
+      _keyValue(result);
+      break;
+    
+    case 'E':   // END
+      if (currentSubArray) {
+        items.push(currentSubArray.length === 1 ? currentSubArray[0] : currentSubArray);
       }
-    }
-    this._pos++;
-    return items;
-  }
-
-  _value() {
-    const token = this._tokens[this._pos++] || END;
-    switch (token.t) {
-      case 'STR': return token._value.slice(1, -1);
-      case 'NUM': return parseFloat(token._value);
-      case 'T': return true;
-      case 'F': return false;
-      case 'Null': return null;
-      case '[': return this._bracket();
-      default:
-        throw Error(`\tBad token: ${token.t} at ${token._pos}`);
+      if (result) {
+        if (items) result._ = items;
+        return result;
+      }
+      return items ? items : {};
+    
+    default: 
+      if (result) _eat('END');
+      result = _value();
     }
   }
 }
 
-const parser = new MonParser();
+function _keyValue(output) {
+  let next = _peek();
+  do {
+    let noQuote = next === 'ID';
+    let key = _eat(next)._value;
+    key = noQuote ? key : key.slice(1, -1);
+    _eat('=');
+    output[key] = _value();
+    next = _peek();
+  } while (next[0] === 'I')
+}
+
+function _bracket() {
+  const items = [];
+  while (_peek() !== ']') {
+    items.push(_value());
+    if (_peek() === ',') {
+      _pos++;
+    }
+  }
+  _pos++;
+  return items;
+}
+
+function _value() {
+  const token = _tokens[_pos++];
+  switch (token.t) {
+    case 'STR': return token._value.slice(1, -1);
+    case 'NUM': return parseFloat(token._value);
+    case 'T': return true;
+    case 'F': return false;
+    case 'Null': return null;
+    case '[': return _bracket();
+    default:
+      throw Error(`\tBad token: ${token.t} at ${token._pos}`);
+  }
+}
 
 let digits = /^\d+$|^\[\]$/;
 
@@ -185,21 +205,20 @@ function parseSection(node, trust, root = null, groot = null,
 try {
   
   if (!inTag) try {
-    if (node._lines.length) { // parse item
-      parser._tokens = tokenize(node._lines.join('\n'));
-      parser._pos = 0; 
-      obj = parser._section();
+    const lines = node._lines;
+    if (lines.length) { // parse item
+      _tokens = tokenize(lines.length === 1 ? lines[0] : lines.join('\n'));
+      _tokens.push(END);
+      _pos = 0; 
+      obj = _section();
     }
   } catch (err) {
     throw Error(`\n\tParser error:\n${err.message}`)
   }
   
   let childData = undefined;
-  let space = /\s+/;
   for (const child of node._kids) {
-    let [cname, ctags] = child._name.split(' : ');
-    ctags = ctags ? ctags.trim().split(space) : [];
-    cname = cname.trim();
+    let cname = child._name, ctags = child._tags;
     
     if (!inTag) {
       for (let tag of tags) {
@@ -256,7 +275,7 @@ try {
 //    case '>':
     default:
       if (inTag) {
-        let [pname, ptags] = node._name.split(' : ');
+        let pname = node._name, ptags = node._tags;
         let pLabel = (node._nodeType === ':') ? pname : ptags;
         let parent = subTags[pLabel] ??= [];
         let cLabel = cname === '*' ? ' ' : cname;
@@ -277,11 +296,6 @@ try {
       cname[cname.length - 1] === '.' ? [cname.slice(0, -1)] :
       trust < 0 ? [cname] : 
       cname.split('.');
-    
-    if (!prefixes.length) {
-      obj = childData;
-      continue;
-    }
     
     if (typeof obj !== "object") obj = { _: obj };
     
@@ -394,8 +408,9 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
       let isDitto = _nodeType === '=' && current._kids.length !== 0;
       if (isDitto) { _nodeType = '#'; }
 
-      let _name = line.slice(headerLength).trim();
-      const node = { level, _name, _lines: [], _kids: [], _nodeType };
+      const [_name, _tags] = line.slice(headerLength).trim().split(' : ');
+      const node = { level, _name: _name.trim(), _tags: _tags?.trim().split(WS_PATTERN) ?? [],
+        _lines: [], _kids: [], _nodeType };
       if (isDitto && trust > 0 && lastValidNodes[level]) {
         node._lines = [...lastValidNodes[level]._lines];
         node._kids = [...lastValidNodes[level]._kids];
