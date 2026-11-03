@@ -162,7 +162,7 @@ function _keyValue(output) {
   let next = _peek();
   do {
     let noQuote = next === 'ID';
-    let key = _eat(next)._value;
+    let key = _tokens[_pos++]._value;
     key = noQuote ? key : key.slice(1, -1);
     _eat('=');
     output[key] = _value();
@@ -417,7 +417,7 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
       }
       
       if (bags && _nodeType === '>') {
-        let path = stack.map((node) => { return node._name.split(' : ')[0] });
+        let path = stack.map((node) => { return node._name });
         let item = [path.slice(1), {}];
         (bags[_name] ??= []).push(item);
         node._bag = item[1];
