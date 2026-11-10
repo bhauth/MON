@@ -7,6 +7,8 @@ const T_PATTERN = /true\b/y;
 const F_PATTERN = /false\b/y;
 const NULL_PATTERN = /null\b/y;
 
+const COMMENT_PATTERN = /\/\/[^\n]*(?:\n|$)/y;
+
 // Push a token of `type` if `pattern` matches at _pos; return the match
 // length, or 0 when it does not match.
 function at(tokens, input, _pos, pattern, type) {
@@ -30,6 +32,14 @@ function tokenize(input) {
     case '\n':
       _pos++;
       continue;
+
+    case '/':
+      COMMENT_PATTERN.lastIndex = _pos;
+      if (COMMENT_PATTERN.test(input)) {
+        _pos = COMMENT_PATTERN.lastIndex;
+        continue;
+      }
+      break;
 
     case ',':
     case '[':
@@ -357,8 +367,9 @@ try {
   return obj;
 }
 
+const HEADER_PATTERN = /(?:\n|^)[ \t]*(#[^\n]*)/g;
+
 export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], tagCode = {}, subTags = {}) {
-  const lines = text.split('\n');
   let stack = [{ level: 0, _name: '', _lines: [], _kids: [] }];
   let current = stack[0];
   let lastValidNodes = [];
@@ -366,74 +377,96 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
   let commentLevel = 0;
   let textLevel = 0;
 
-  // build hierarchy
-  for (let line of lines) {
-    if (!textLevel) { line = line.trimStart(); }
-    
+  let blockStart = 0;
+  let blockNode = stack[0];
+
+  for (let pos = 0; ; ) {
+    HEADER_PATTERN.lastIndex = pos;
+
+    const m = HEADER_PATTERN.exec(text);
+    if (!m) {
+      if (!commentLevel && text.length > blockStart) {
+        blockNode._lines.push(text.slice(blockStart, text.length));
+      }
+      break;
+    }
+
+    const line = m[1];
+    const lineStart = m.index === 0 ? 0 : m.index + 1;
+    pos = HEADER_PATTERN.lastIndex;
+
     let level = 0;
     while (line[level] === '#') level++;
 
     if (commentLevel) {
-      if (level && level <= commentLevel) {
+      if (level <= commentLevel) {
         commentLevel = 0;
+        blockStart = lineStart;
       } else continue;
     }
 
-    if (level) {
-      if (textLevel && level > textLevel) {
-        current._lines.push(line.slice(textLevel));
-        continue;
-      }
-      
-      let _nodeType = line[level];
-      textLevel = 0;
-      
-      switch (_nodeType) {
-      case '/': commentLevel = level; continue;
-      case '"': textLevel = level; break;
-      case '=': 
-      case ';': 
-      case ':': 
-      case '>': break;
-      default: _nodeType = '#'; break;
-      }
+    if (lineStart > blockStart) {
+      blockNode._lines.push(text.slice(blockStart, lineStart - 1));
+    }
 
-      while (stack[stack.length - 1].level >= level) {
-        stack.pop();
-      }
-      current = stack[stack.length - 1];
+    if (textLevel && level > textLevel) {
+      blockNode._lines.push(line.slice(textLevel));
+      blockStart = pos + 1;
+      continue;
+    }
 
-      let headerLength = (_nodeType != '#') ? level + 1 : level;
+    let _nodeType = line[level];
+    textLevel = 0;
 
-      let isDitto = _nodeType === '=' && current._kids.length !== 0;
-      if (isDitto) { _nodeType = '#'; }
+    switch (_nodeType) {
+    case '/':
+      commentLevel = level;
+      blockStart = pos + 1;
+      continue;
+    case '"': textLevel = level; break;
+    case '=': 
+    case ';': 
+    case ':': 
+    case '>': break;
+    default: _nodeType = '#'; break;
+    }
 
-      const [_name, _tags] = line.slice(headerLength).trim().split(' : ');
-      const node = { level, _name: _name.trim(), _tags: _tags?.trim().split(WS_PATTERN) ?? [],
-        _lines: [], _kids: [], _nodeType };
-      if (isDitto && trust > 0 && lastValidNodes[level]) {
-        node._lines = [...lastValidNodes[level]._lines];
-        node._kids = [...lastValidNodes[level]._kids];
-      }
-      
-      if (bags && _nodeType === '>') {
-        let path = stack.map((node) => { return node._name });
-        let item = [path.slice(1), {}];
-        (bags[_name] ??= []).push(item);
-        node._bag = item[1];
-      }
+    while (stack[stack.length - 1].level >= level) {
+      stack.pop();
+    }
+    current = stack[stack.length - 1];
 
-      stack.push(node);
-      current._kids.push(node);
-      current = node;
+    let headerLength = (_nodeType != '#') ? level + 1 : level;
 
-      if (!isDitto
-          && (_nodeType === '#' || _nodeType === '=')) {
-        lastValidNodes[level] = node;
-      }
+    let isDitto = _nodeType === '=' && current._kids.length !== 0;
+    if (isDitto) { _nodeType = '#'; }
+
+    const [_name, _tags] = line.slice(headerLength).split(' : ');
+    const node = { level, _name: _name.trim(), _tags: _tags?.trim().split(WS_PATTERN) ?? [],
+      _lines: [], _kids: [], _nodeType };
+    if (isDitto && trust > 0 && lastValidNodes[level]) {
+      node._lines = [...lastValidNodes[level]._lines];
+      node._kids = [...lastValidNodes[level]._kids];
+    }
     
-    } else if (textLevel || !line.startsWith('//'))
-      current._lines.push(line);
+    if (bags && _nodeType === '>') {
+      let path = stack.map((node) => { return node._name });
+      let item = [path.slice(1), {}];
+      (bags[_name] ??= []).push(item);
+      node._bag = item[1];
+    }
+
+    stack.push(node);
+    current._kids.push(node);
+    current = node;
+
+    if (!isDitto
+        && (_nodeType === '#' || _nodeType === '=')) {
+      lastValidNodes[level] = node;
+    }
+
+    blockNode = node;
+    blockStart = pos + 1;
   }
 
   return parseSection(stack[0], trust, null, groot, tags, tagCode, subTags);
