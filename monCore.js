@@ -405,7 +405,7 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
       } else continue;
     }
 
-    if (textLevel && lineStart && m[0][1] !== '#') { continue; }
+    if (textLevel && m[0][1] !== '#') { continue; }
 
     if (blockStart < lineStart) {
       blockNode._lines.push(text.slice(blockStart, lineStart));
