@@ -392,7 +392,7 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
     }
 
     const line = m[1];
-    const lineStart = m.index === 0 ? 0 : m.index + 1;
+    const lineStart = m.index;
     pos = HEADER_PATTERN.lastIndex;
 
     let level = 0;
@@ -401,12 +401,14 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
     if (commentLevel) {
       if (level <= commentLevel) {
         commentLevel = 0;
-        blockStart = lineStart;
+        blockStart = lineStart + 1;
       } else continue;
     }
 
-    if (lineStart > blockStart) {
-      blockNode._lines.push(text.slice(blockStart, lineStart - 1));
+    if (textLevel && lineStart && m[0][1] !== '#') { continue; }
+
+    if (blockStart < lineStart) {
+      blockNode._lines.push(text.slice(blockStart, lineStart));
     }
 
     if (textLevel && level > textLevel) {
