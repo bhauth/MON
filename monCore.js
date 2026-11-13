@@ -371,7 +371,6 @@ const HEADER_PATTERN = /(?:\n|^)[ \t]*(#[^\n]*)/g;
 
 export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], tagCode = {}, subTags = {}) {
   let stack = [{ level: 0, _name: '', _lines: [], _kids: [] }];
-  let current = stack[0];
   let lastValidNodes = [];
 
   let commentLevel = 0;
@@ -380,13 +379,12 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
   let blockStart = 0;
   let blockNode = stack[0];
 
+  HEADER_PATTERN.lastIndex = 0;
   for (let pos = 0; ; ) {
-    HEADER_PATTERN.lastIndex = pos;
-
     const m = HEADER_PATTERN.exec(text);
     if (!m) {
       if (!commentLevel && text.length > blockStart) {
-        blockNode._lines.push(text.slice(blockStart, text.length));
+        blockNode._lines.push(text.slice(blockStart));
       }
       break;
     }
@@ -398,16 +396,12 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
     let level = 0;
     while (line[level] === '#') level++;
 
-    if (commentLevel) {
+    if (textLevel && m[0][1] !== '#') { continue; }
+    else if (commentLevel) {
       if (level <= commentLevel) {
         commentLevel = 0;
-        blockStart = lineStart + 1;
       } else continue;
-    }
-
-    if (textLevel && m[0][1] !== '#') { continue; }
-
-    if (blockStart < lineStart) {
+    } else if (blockStart < lineStart) {
       blockNode._lines.push(text.slice(blockStart, lineStart));
     }
 
@@ -436,15 +430,16 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
     while (stack[stack.length - 1].level >= level) {
       stack.pop();
     }
-    current = stack[stack.length - 1];
+    const current = stack[stack.length - 1];
 
     let headerLength = (_nodeType != '#') ? level + 1 : level;
 
     let isDitto = _nodeType === '=' && current._kids.length !== 0;
     if (isDitto) { _nodeType = '#'; }
 
-    const [_name, _tags] = line.slice(headerLength).split(' : ');
-    const node = { level, _name: _name.trim(), _tags: _tags?.trim().split(WS_PATTERN) ?? [],
+    let [_name, _tags] = line.slice(headerLength).split(' : ');
+    _name = _name.trim();
+    const node = { level, _name, _tags: _tags?.trim().split(WS_PATTERN) ?? [],
       _lines: [], _kids: [], _nodeType };
     if (isDitto && trust > 0 && lastValidNodes[level]) {
       node._lines = [...lastValidNodes[level]._lines];
@@ -460,7 +455,6 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
 
     stack.push(node);
     current._kids.push(node);
-    current = node;
 
     if (!isDitto
         && (_nodeType === '#' || _nodeType === '=')) {
