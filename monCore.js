@@ -427,10 +427,10 @@ export function parseMon(text, trust = 1, bags = null, groot = null, tags = [], 
     default: _nodeType = '#'; break;
     }
 
-    while (stack[stack.length - 1].level >= level) {
+    let current;
+    while ((current = stack[stack.length - 1]).level >= level) {
       stack.pop();
     }
-    const current = stack[stack.length - 1];
 
     let headerLength = (_nodeType != '#') ? level + 1 : level;
 
