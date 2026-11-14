@@ -26,7 +26,8 @@ export function objToMon(json, options) {
     const at = level === 0 ? "" : unit;
     const nested = [];
 
-    for (const [k, v] of Object.entries(obj)) {
+    for (const k in obj) {
+      const v = obj[k];
       if (isObj(v)) {
         nested.push([k, v]);
       } else if (wantsTextBlock(v)) {
@@ -46,20 +47,27 @@ export function objToMon(json, options) {
     const at = isRoot ? "" : unit;
     if (!arr.length) return lines.push(at + "[]");
 
-    let rowPos = true;
-    for (const e of arr) {
+    // before the first block element every element is a scalar or flat row
+    for (let i = 0; ; i++) {
+      if (i === arr.length) return;
+      const e = arr[i];
       const text = wantsTextBlock(e);
       let body;
-
-      if (rowPos && !text && (!isObj(e) || (body = getFlatRowBody(e)) !== null)) {
+      const row = !text && (!isObj(e) || (body = getFlatRowBody(e)) !== null);
+      if (row) {
         lines.push(`${at}- ${body !== undefined ? body : formatScalar(e)}`);
-      } else {
-        rowPos = false;
-        pushHeader("[]", level + 1, text);
-        if (text) pushTextLines(e, level + 1);
-        else emitValue(e, level + 1, false);
+        continue;
       }
+      for (; i < arr.length; i++) emitBlockElement(arr[i], level);
+      return;
     }
+  }
+
+  function emitBlockElement(e, level) {
+    const text = wantsTextBlock(e);
+    pushHeader("[]", level + 1, text);
+    if (text) pushTextLines(e, level + 1);
+    else emitValue(e, level + 1, false);
   }
 
   function pushTextBlock(name, s, level) {
@@ -97,7 +105,9 @@ function getFlatRowBody(arr) {
   for (let i = 0; i < arr.length; i++) {
     if (isObj(arr[i]) || wantsTextBlock(arr[i])) return null;
   }
-  return arr.length === 1 ? `[${formatScalar(arr[0])}]` : arr.map(formatScalar).join(", ");
+  let s = formatScalar(arr[0]);
+  for (let i = 1; i < arr.length; i++) s += ", " + formatScalar(arr[i]);
+  return arr.length === 1 ? `[${s}]` : s;
 }
 
 function kvpKey(k) {
